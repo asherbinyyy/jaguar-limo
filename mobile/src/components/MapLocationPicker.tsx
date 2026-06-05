@@ -12,7 +12,7 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Modal, View, Text, Pressable, StyleSheet, ActivityIndicator, Platform,
+  View, Text, Pressable, StyleSheet, ActivityIndicator, Platform,
 } from 'react-native';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -94,9 +94,10 @@ export default function MapLocationPicker({ visible, onClose, onConfirm, lang }:
     }
   };
 
+  if (!visible) return null;
+
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={s.container}>
+    <View style={[StyleSheet.absoluteFill, s.container]}>
         <MapView
           ref={mapRef}
           style={StyleSheet.absoluteFill}
@@ -155,12 +156,11 @@ export default function MapLocationPicker({ visible, onClose, onConfirm, lang }:
           </Pressable>
         </View>
       </View>
-    </Modal>
   );
 }
 
 const s = StyleSheet.create({
-  container:   { flex: 1, backgroundColor: C.bg },
+  container:   { backgroundColor: C.bg, zIndex: 100, elevation: 100 },
   topBar:      { position: 'absolute', top: Platform.OS === 'ios' ? 54 : 24, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
   topBtn:      { minWidth: 60, backgroundColor: 'rgba(0,0,0,0.65)', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12 },
   topBtnTxt:   { color: C.gold, fontSize: 14, fontWeight: '700', textAlign: 'center' },

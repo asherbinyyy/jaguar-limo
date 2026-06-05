@@ -92,8 +92,8 @@ function DurationHero({ lang, onSearch }: { lang: Lang; onSearch: (type: RentalT
       setTimeout(() => Alert.alert(
         ar ? '🎁 عروض خاصة للإيجار الشهري' : '🎁 Monthly Rental Special Offers',
         ar
-          ? '• خصم 20% على الإيجار الشهري\n• سائق مخصص طوال الشهر\n• رحلة مطار مجانية شهرياً\n• أولوية الحجز والدعم 24/7\n\nتواصل معنا للحصول على عرض مخصص.'
-          : '• 20% off on all monthly rentals\n• Dedicated driver all month long\n• 1 free airport transfer per month\n• Priority booking & 24/7 support\n\nContact us for a custom quote.',
+          ? '• عروض خاصة على الإيجار الشهري\n• سائق مخصص طوال الشهر\n• رحلة مطار مجانية شهرياً\n• أولوية الحجز والدعم 24/7\n\nتواصل معنا للحصول على عرض مخصص.'
+          : '• Special offers on monthly rentals\n• Dedicated driver all month long\n• 1 free airport transfer per month\n• Priority booking & 24/7 support\n\nContact us for a custom quote.',
         [{ text: ar ? 'رائع! 👍' : 'Sounds great! 👍' }]
       ), 120);
     }
@@ -271,7 +271,7 @@ function DurationHero({ lang, onSearch }: { lang: Lang; onSearch: (type: RentalT
         <Text style={s.heroBtnTxt}>
           {type==='airport'
             ? (ar ? '✈️ احجز رحلة المطار' : '✈️ Book Airport Transfer')
-            : (ar ? '🚗 شاهد السيارات المتاحة' : '🚗 See Available Cars')}
+            : (ar ? 'شاهد السيارات المتاحة' : 'See Available Cars')}
         </Text>
       </Pressable>
 

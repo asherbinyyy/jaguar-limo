@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Animated } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Animated, Image } from 'react-native';
 import Svg, { Circle, Line, Path, Polyline, Rect, G } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import GoldBtn from '../components/GoldBtn';
@@ -163,6 +163,8 @@ function Step2({ onNext, lang }: { onNext: (car: Car) => void; lang: Lang }) {
           <Pressable key={car.id} onPress={() => setSel(car.id)} style={[st.carCard, sel===car.id && st.carCardSelected]}>
             <View style={st.carImgWrap}>
               <LinearGradient colors={car.gradientColors} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill} />
+              <Image source={{ uri: car.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              <LinearGradient colors={['transparent','rgba(0,0,0,0.6)']} style={StyleSheet.absoluteFill} />
               <View style={st.carBadgeWrap}><Badge label={car.label} type={car.cat} /></View>
               {sel === car.id && <View style={st.checkWrap}><Text style={st.checkTxt}>✓</Text></View>}
             </View>

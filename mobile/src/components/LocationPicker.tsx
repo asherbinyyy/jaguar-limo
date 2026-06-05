@@ -15,6 +15,7 @@ import {
 import * as Location from 'expo-location';
 import { C } from '../constants';
 import { API_URL } from '../api';
+import MapLocationPicker from './MapLocationPicker';
 
 interface Place { id: string; name: string; address: string }
 
@@ -35,29 +36,83 @@ const QUICK: { id: string; ico: string; en: string; ar: string }[] = [
   { id: 'heliopolis', ico: '📌', en: 'Heliopolis, Cairo',        ar: 'مصر الجديدة، القاهرة' },
 ];
 
+// Built-in searchable places — lets users search & pick instantly even when
+// the Google Places backend isn't reachable (e.g. running in Expo Go).
+const PLACES: { en: string; ar: string; area: string; areaAr: string }[] = [
+  { en: 'Cairo International Airport — Terminal 1', ar: 'مطار القاهرة الدولي — مبنى 1', area: 'Cairo', areaAr: 'القاهرة' },
+  { en: 'Cairo International Airport — Terminal 2', ar: 'مطار القاهرة الدولي — مبنى 2', area: 'Cairo', areaAr: 'القاهرة' },
+  { en: 'Cairo International Airport — Terminal 3', ar: 'مطار القاهرة الدولي — مبنى 3', area: 'Cairo', areaAr: 'القاهرة' },
+  { en: 'Sphinx International Airport', ar: 'مطار سفنكس الدولي', area: 'Giza', areaAr: 'الجيزة' },
+  { en: 'Maadi', ar: 'المعادي', area: 'Cairo', areaAr: 'القاهرة' },
+  { en: 'Zamalek', ar: 'الزمالك', area: 'Cairo', areaAr: 'القاهرة' },
+  { en: 'Heliopolis', ar: 'مصر الجديدة', area: 'Cairo', areaAr: 'القاهرة' },
+  { en: 'Nasr City', ar: 'مدينة نصر', area: 'Cairo', areaAr: 'القاهرة' },
+  { en: 'New Cairo — 5th Settlement', ar: 'القاهرة الجديدة — التجمع الخامس', area: 'New Cairo', areaAr: 'القاهرة الجديدة' },
+  { en: 'Downtown Cairo', ar: 'وسط البلد', area: 'Cairo', areaAr: 'القاهرة' },
+  { en: 'Garden City', ar: 'جاردن سيتي', area: 'Cairo', areaAr: 'القاهرة' },
+  { en: 'Mohandessin', ar: 'المهندسين', area: 'Giza', areaAr: 'الجيزة' },
+  { en: 'Dokki', ar: 'الدقي', area: 'Giza', areaAr: 'الجيزة' },
+  { en: 'Giza — Pyramids', ar: 'الجيزة — الأهرامات', area: 'Giza', areaAr: 'الجيزة' },
+  { en: '6th of October City', ar: 'مدينة 6 أكتوبر', area: 'Giza', areaAr: 'الجيزة' },
+  { en: 'Sheikh Zayed City', ar: 'مدينة الشيخ زايد', area: 'Giza', areaAr: 'الجيزة' },
+  { en: 'New Administrative Capital', ar: 'العاصمة الإدارية الجديدة', area: 'Cairo', areaAr: 'القاهرة' },
+  { en: 'Cairo Festival City Mall', ar: 'كايرو فيستيفال سيتي مول', area: 'New Cairo', areaAr: 'القاهرة الجديدة' },
+  { en: 'Mall of Egypt', ar: 'مول مصر', area: '6th of October', areaAr: '6 أكتوبر' },
+  { en: 'City Stars Mall', ar: 'سيتي ستارز', area: 'Nasr City', areaAr: 'مدينة نصر' },
+  { en: 'Ramses Railway Station', ar: 'محطة مصر — رمسيس', area: 'Cairo', areaAr: 'القاهرة' },
+  { en: 'Khan el-Khalili', ar: 'خان الخليلي', area: 'Cairo', areaAr: 'القاهرة' },
+  { en: 'Smart Village', ar: 'القرية الذكية', area: 'Giza', areaAr: 'الجيزة' },
+  { en: 'El Rehab City', ar: 'مدينة الرحاب', area: 'New Cairo', areaAr: 'القاهرة الجديدة' },
+  { en: 'Madinaty', ar: 'مدينتي', area: 'New Cairo', areaAr: 'القاهرة الجديدة' },
+  { en: 'Obour City', ar: 'مدينة العبور', area: 'Cairo', areaAr: 'القاهرة' },
+  { en: 'Shorouk City', ar: 'مدينة الشروق', area: 'Cairo', areaAr: 'القاهرة' },
+];
+
+const norm = (s: string) => s.toLowerCase().trim();
+
 export default function LocationPicker({ visible, onClose, onSelect, lang, title }: Props) {
   const ar = lang === 'ar';
   const [query, setQuery]       = useState('');
   const [results, setResults]   = useState<Place[]>([]);
   const [loading, setLoading]   = useState(false);
   const [locating, setLocating] = useState(false);
+  const [mapOpen, setMapOpen]   = useState(false);
   const inputRef = useRef<TextInput>(null);
 
-  // Debounced autocomplete
+  // Instant local search + (optional) backend autocomplete merged on top.
   useEffect(() => {
-    if (!query.trim() || query.length < 2) { setResults([]); return; }
-    const t = setTimeout(() => fetchPlaces(query), 450);
-    return () => clearTimeout(t);
-  }, [query]);
+    const q = norm(query);
+    if (!q || q.length < 1) { setResults([]); return; }
 
-  const fetchPlaces = async (q: string) => {
+    // 1) Filter the built-in dataset immediately — works fully offline.
+    const local: Place[] = PLACES
+      .filter(p => norm(p.en).includes(q) || norm(p.ar).includes(q) || norm(p.area).includes(q) || norm(p.areaAr).includes(q))
+      .slice(0, 12)
+      .map((p, i) => ({
+        id: `local-${i}`,
+        name: ar ? p.ar : p.en,
+        address: ar ? p.areaAr : p.area,
+      }));
+    setResults(local);
+
+    // 2) Try the backend too; if it answers, prepend any new results.
+    const handle = setTimeout(() => fetchPlaces(query, local), 400);
+    return () => clearTimeout(handle);
+  }, [query, ar]);
+
+  const fetchPlaces = async (q: string, local: Place[]) => {
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/places/autocomplete?q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(4000) });
       const data = await res.json();
-      setResults(data.results ?? []);
+      const remote: Place[] = data.results ?? [];
+      if (remote.length) {
+        // Merge, de-duping by name, backend results first.
+        const seen = new Set(remote.map(r => norm(r.name)));
+        setResults([...remote, ...local.filter(l => !seen.has(norm(l.name)))]);
+      }
     } catch {
-      setResults([]); // backend not ready / no key — silently fall back
+      // backend not ready / no key — local results already shown
     } finally {
       setLoading(false);
     }
@@ -109,9 +164,10 @@ export default function LocationPicker({ visible, onClose, onSelect, lang, title
               placeholderTextColor={C.gray}
               value={query}
               onChangeText={setQuery}
+              onSubmitEditing={() => { if (query.trim()) pick(query.trim()); }}
               autoFocus
               selectionColor={C.gold}
-              returnKeyType="search"
+              returnKeyType="done"
             />
             {query.length > 0 && (
               <Pressable onPress={() => { setQuery(''); setResults([]); }} style={styles.clearBtn}>
@@ -136,13 +192,40 @@ export default function LocationPicker({ visible, onClose, onSelect, lang, title
             {locating && <ActivityIndicator size="small" color={C.gold} />}
           </Pressable>
 
+          {/* Choose on map — opens interactive draggable-pin map */}
+          <Pressable onPress={() => setMapOpen(true)} style={styles.mapBtn}>
+            <Text style={styles.gpsIco}>🗺️</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.mapTxt, ar && styles.rtl]}>
+                {ar ? 'الاختيار من الخريطة' : 'Choose on Map'}
+              </Text>
+              <Text style={[styles.gpsSub, ar && styles.rtl]}>
+                {ar ? 'اسحب الدبوس لتحديد الموقع بدقة' : 'Drag the pin to set the exact spot'}
+              </Text>
+            </View>
+            <Text style={styles.locArrow}>›</Text>
+          </Pressable>
+
           <View style={styles.divider} />
 
-          {/* Loading */}
-          {loading && <ActivityIndicator color={C.gold} style={{ marginVertical: 12 }} />}
+          {/* Use exactly what was typed — guarantees manual entry always saves */}
+          {query.trim().length > 0 && (
+            <Pressable onPress={() => pick(query.trim())} style={styles.useTypedRow}>
+              <Text style={styles.resultIco}>✏️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.useTypedTxt, ar && styles.rtl]} numberOfLines={1}>
+                  {ar ? `استخدم "${query.trim()}"` : `Use "${query.trim()}"`}
+                </Text>
+                <Text style={[styles.gpsSub, ar && styles.rtl]}>
+                  {ar ? 'إضافة هذا العنوان يدوياً' : 'Add this address manually'}
+                </Text>
+              </View>
+              <Text style={styles.locArrow}>›</Text>
+            </Pressable>
+          )}
 
-          {/* Autocomplete results */}
-          {!loading && results.length > 0 && (
+          {/* Autocomplete results — shown instantly from the built-in list */}
+          {results.length > 0 && (
             <FlatList
               data={results}
               keyExtractor={i => i.id}
@@ -160,8 +243,8 @@ export default function LocationPicker({ visible, onClose, onSelect, lang, title
             />
           )}
 
-          {/* Quick picks (shown when no search results) */}
-          {!loading && results.length === 0 && (
+          {/* Quick picks (shown when not searching) */}
+          {results.length === 0 && (
             <>
               <Text style={[styles.sectionLbl, ar && styles.rtl]}>
                 {ar ? 'المواقع الشائعة' : 'Common Locations'}
@@ -176,6 +259,14 @@ export default function LocationPicker({ visible, onClose, onSelect, lang, title
           )}
         </View>
       </KeyboardAvoidingView>
+
+      {/* Interactive map pin picker */}
+      <MapLocationPicker
+        visible={mapOpen}
+        onClose={() => setMapOpen(false)}
+        onConfirm={(addr) => { setMapOpen(false); pick(addr); }}
+        lang={lang}
+      />
     </Modal>
   );
 }
@@ -192,7 +283,9 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, height: 50, color: C.white, fontSize: 15 },
   clearBtn:    { padding: 6 },
   clearTxt:    { color: C.gray, fontSize: 14 },
-  gpsBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(46,125,79,0.15)', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: 'rgba(46,125,79,0.35)', marginBottom: 4 },
+  gpsBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(46,125,79,0.15)', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: 'rgba(46,125,79,0.35)', marginBottom: 8 },
+  mapBtn:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(201,162,39,0.1)', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: 'rgba(201,162,39,0.35)', marginBottom: 4 },
+  mapTxt:      { color: C.gold, fontSize: 14, fontWeight: '700' },
   gpsIco:      { fontSize: 20 },
   gpsTxt:      { color: C.greenLight, fontSize: 14, fontWeight: '700' },
   gpsSub:      { color: C.gray, fontSize: 12, marginTop: 2 },
@@ -203,4 +296,7 @@ const styles = StyleSheet.create({
   resultIco:   { fontSize: 18, width: 28, textAlign: 'center' },
   resultName:  { color: C.white, fontSize: 14, fontWeight: '600' },
   resultAddr:  { color: C.gray, fontSize: 12, marginTop: 2 },
+  useTypedRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(201,162,39,0.1)', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: 'rgba(201,162,39,0.35)', marginBottom: 8 },
+  useTypedTxt: { color: C.gold, fontSize: 14, fontWeight: '700' },
+  locArrow:    { color: C.gold, fontSize: 22, fontWeight: '300' },
 });

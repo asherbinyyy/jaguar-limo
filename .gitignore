@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.npm
+
+# Expo
+.expo/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Metro
+.metro-health-check*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# TypeScript
+*.tsbuildinfo
+
+# Build output
+/backend/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# iOS / Android (native builds — not needed for Expo Go)
+ios/
+android/

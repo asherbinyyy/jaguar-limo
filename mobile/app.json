@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Jaguar Limousine",
+    "slug": "jaguar-limousine",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "jaguarlimousine",
+    "splash": {
+      "backgroundColor": "#0D0D0D"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.jaguarlimousine.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We use your location to find nearby drivers and show your pickup point on the map.",
+        "NSContactsUsageDescription": "We use your contacts to let you add trusted contacts for trip safety sharing."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0D0D0D"
+      },
+      "package": "com.jaguarlimousine.app"
+    },
+    "extra": {
+      "apiUrl": "http://localhost:3001"
+    },
+    "plugins": [
+      "expo-asset"
+    ]
+  }
+}

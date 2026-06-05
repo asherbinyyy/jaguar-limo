@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Linking, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Card from '../components/Card';
+import BrandLogo from '../components/BrandLogo';
 import { C } from '../constants';
 import { t, Lang } from '../i18n';
 
@@ -67,6 +68,7 @@ export default function ProfileScreen({ lang, navigate }: Props) {
 
   return (
     <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <BrandLogo />
       {/* Profile Header */}
       <LinearGradient colors={['rgba(26,77,46,0.28)', 'transparent']} style={styles.profileHeader}>
         <View style={[styles.profileRow, ar && styles.rowRtl]}>

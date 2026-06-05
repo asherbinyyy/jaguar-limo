@@ -7,6 +7,7 @@ import LocationPicker from '../components/LocationPicker';
 import { C } from '../constants';
 import { t, Lang } from '../i18n';
 import { BookData } from '../types';
+import BrandLogo from '../components/BrandLogo';
 
 const REBOOK = [
   { route: 'Maadi → Cairo Airport T2', car: 'Mercedes S-Class', date: 'Jun 2' },
@@ -308,6 +309,8 @@ export default function HomeScreen({ lang, navigate, setBookData }: Props) {
 
   return (
     <ScrollView style={st.scroll} contentContainerStyle={st.content} showsVerticalScrollIndicator={false}>
+      {/* Brand Logo */}
+      <BrandLogo />
       {/* Top Bar */}
       <View style={[st.topBar, ar && st.rowRtl]}>
         <View>
@@ -316,7 +319,7 @@ export default function HomeScreen({ lang, navigate, setBookData }: Props) {
         </View>
         <View style={[st.topRight, ar && st.rowRtl]}>
           <Pressable onPress={() => navigate('toggleLang')} style={st.langBtn}>
-            <Text style={st.langTxt}>{ar ? 'EN' : 'عر'}</Text>
+            <Text style={st.langTxt}>{ar ? 'EN' : 'AR'}</Text>
           </Pressable>
           <Pressable onPress={() => navigate('notifications')} style={st.bellBtn}>
             <Text style={st.bellIco}>🔔</Text>
@@ -356,17 +359,6 @@ export default function HomeScreen({ lang, navigate, setBookData }: Props) {
             </View>
           ))}
         </ScrollView>
-      </View>
-
-      {/* Saved Locations */}
-      <View style={st.section}>
-        <SectionHeader title={t(lang,'favorites')}/>
-        <View style={st.favRow}>
-          {(ar?[['🏠','المنزل'],['🏢','العمل'],['✈️','المطار']]:[['🏠','Home'],['🏢','Work'],['✈️','Airport']]).map(([ico,lbl],i)=>(
-            <Pressable key={i} style={st.favChip}><Text>{ico}</Text><Text style={st.favTxt}>{lbl}</Text></Pressable>
-          ))}
-          <Pressable style={st.favAdd}><Text style={st.favAddTxt}>+ {t(lang,'addNew')}</Text></Pressable>
-        </View>
       </View>
 
       {/* Current Offers */}

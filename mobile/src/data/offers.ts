@@ -23,16 +23,6 @@ export const OFFERS: Offer[] = [
     bg: ['#3A2800', '#1A1000'],
   },
   {
-    ico: '🗓️',
-    title: 'Monthly Plan — 20% Off',
-    titleAr: 'الباقة الشهرية — خصم 20%',
-    sub: 'Subscribe for 30+ rides/month',
-    subAr: 'اشترك في 30+ رحلة شهرياً',
-    code: 'MONTHLY20',
-    exp: 'Limited',
-    bg: ['#1A203A', '#0A0D18'],
-  },
-  {
     ico: '🎂',
     title: 'Birthday Bonus',
     titleAr: 'مكافأة عيد الميلاد',

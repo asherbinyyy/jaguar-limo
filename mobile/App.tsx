@@ -20,6 +20,7 @@ import TrackingScreen from './src/screens/TrackingScreen';
 import LoyaltyScreen from './src/screens/LoyaltyScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import TabBar from './src/components/TabBar';
+import BrandLogo from './src/components/BrandLogo';
 
 import { C } from './src/constants';
 import { Phase, TabId, ScreenId, BookData, Lang } from './src/types';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, Image, Pressable, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Image, Pressable, StyleSheet, Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Badge from '../components/Badge';
 import GoldBtn from '../components/GoldBtn';
@@ -14,6 +14,13 @@ interface Props { car: Car; onBack: () => void; navigate: (d: string, payload?: 
 
 export default function CarDetailScreen({ car, onBack, navigate, lang }: Props) {
   const ar = lang === 'ar';
+
+  const enquireWhatsApp = () => {
+    const msg = ar
+      ? `مرحباً، أريد الاستفسار عن ${car.name}`
+      : `I want to enquire about ${car.name}`;
+    Linking.openURL(`https://wa.me/201113335999?text=${encodeURIComponent(msg)}`);
+  };
 
   const specs = [
     ['👥', String(car.seats), ar ? 'مقاعد' : 'Seats'],
@@ -89,13 +96,19 @@ export default function CarDetailScreen({ car, onBack, navigate, lang }: Props) 
       </ScrollView>
 
       <View style={styles.footer}>
-        <View>
-          <Text style={styles.footerPrice}>EGP {car.price.toLocaleString()}</Text>
-          <Text style={styles.footerPer}>/trip</Text>
+        <Pressable onPress={enquireWhatsApp} style={styles.waBtn}>
+          <Text style={styles.waIco}>💬</Text>
+          <Text style={styles.waTxt}>{ar ? 'استفسر عبر واتساب' : 'Enquire via WhatsApp'}</Text>
+        </Pressable>
+        <View style={styles.footerActions}>
+          <View>
+            <Text style={styles.footerPrice}>EGP {car.price.toLocaleString()}</Text>
+            <Text style={styles.footerPer}>/trip</Text>
+          </View>
+          <GoldBtn onPress={() => navigate('booking', car)} style={styles.bookBtn}>
+            {ar ? 'احجز هذه السيارة' : 'Book This Car'}
+          </GoldBtn>
         </View>
-        <GoldBtn onPress={() => navigate('booking', car)} style={styles.bookBtn}>
-          {ar ? 'احجز هذه السيارة' : 'Book This Car'}
-        </GoldBtn>
       </View>
     </View>
   );
@@ -108,7 +121,7 @@ const styles = StyleSheet.create({
   backBtn: { position: 'absolute', top: 14, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 10, width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
   backArrow: { color: C.white, fontSize: 20 },
   scroll: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 100 },
+  scrollContent: { padding: 20, paddingBottom: 170 },
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
   name: { color: C.white, fontSize: 24, fontWeight: '900', marginBottom: 6 },
   priceWrap: { alignItems: 'flex-end' },
@@ -129,8 +142,12 @@ const styles = StyleSheet.create({
   calLegend: { flexDirection: 'row', gap: 14, marginTop: 10 },
   legendAvail: { color: '#66BB6A', fontSize: 11 },
   legendBooked: { color: '#EF5350', fontSize: 11 },
-  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: C.bg, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)', flexDirection: 'row', alignItems: 'center', gap: 12 },
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: C.bg, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)', gap: 12 },
+  footerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   footerPrice: { color: C.gold, fontSize: 19, fontWeight: '900' },
   footerPer: { color: C.gray, fontSize: 11 },
   bookBtn: { flex: 1 },
+  waBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, borderRadius: 12, backgroundColor: 'rgba(37,211,102,0.12)', borderWidth: 1, borderColor: '#25D366' },
+  waIco: { fontSize: 16 },
+  waTxt: { color: '#25D366', fontSize: 15, fontWeight: '800' },
 });

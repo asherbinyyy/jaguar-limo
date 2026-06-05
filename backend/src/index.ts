@@ -6,6 +6,7 @@ import bookingsRouter from './routes/bookings';
 import offersRouter from './routes/offers';
 import loyaltyRouter from './routes/loyalty';
 import authRouter from './routes/auth';
+import placesRouter from './routes/places';
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ app.use('/bookings', bookingsRouter);
 app.use('/offers',   offersRouter);
 app.use('/loyalty',  loyaltyRouter);
 app.use('/auth',     authRouter);
+app.use('/places',   placesRouter);
 
 // Health check
 app.get('/health', (_, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));

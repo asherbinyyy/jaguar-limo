@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Animated } from 'react-native';
-import Svg, { Circle, Line, Path, Polyline } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Polyline, Rect, G } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import GoldBtn from '../components/GoldBtn';
 import GreenBtn from '../components/GreenBtn';
@@ -8,6 +8,7 @@ import OutlineBtn from '../components/OutlineBtn';
 import Card from '../components/Card';
 import Chip from '../components/Chip';
 import Badge from '../components/Badge';
+import LocationPicker from '../components/LocationPicker';
 import AppInput from '../components/AppInput';
 import { C } from '../constants';
 import { t, Lang } from '../i18n';
@@ -55,8 +56,10 @@ const pg = StyleSheet.create({
 // ─── Step 1: Ride Details ─────────────────────────────────────────────────────
 function Step1({ data, onNext, lang }: { data: BookData; onNext: (d: BookData) => void; lang: Lang }) {
   const ar = lang === 'ar';
-  const [pickup, setPickup] = useState(data.pickup);
+  const [pickup,  setPickup]  = useState(data.pickup);
   const [dropoff, setDropoff] = useState(data.dropoff);
+  const [pickerFor, setPickerFor] = useState<'pickup' | 'dropoff' | null>(null);
+
   return (
     <View style={st.flex}>
       <ScrollView style={st.flex} contentContainerStyle={st.scrollPad} showsVerticalScrollIndicator={false}>
@@ -67,23 +70,37 @@ function Step1({ data, onNext, lang }: { data: BookData; onNext: (d: BookData) =
             {[40, 80, 120, 160, 200, 240, 280, 320].map(x => <Line key={x} x1={x} y1="0" x2={x} y2="148" stroke="rgba(46,125,79,0.12)" strokeWidth="1" />)}
             <Path d="M0,74 C60,68 100,80 160,74 C220,68 260,80 320,74 C360,70 390,74 420,74" stroke="rgba(46,125,79,0.5)" strokeWidth="3.5" fill="none" />
             <Path d="M0,74 C60,68 100,80 160,74 C220,68 260,80 320,74 C360,70 390,74 420,74" stroke={C.gold} strokeWidth="2" fill="none" strokeDasharray="10 6" opacity="0.5" />
-            <Circle cx="80" cy="74" r="10" fill={C.gold} opacity="0.9" />
-            <Circle cx="80" cy="74" r="4" fill="#000" />
-            <Circle cx="300" cy="74" r="10" fill="#EF5350" opacity="0.9" />
-            <Circle cx="300" cy="74" r="4" fill="#000" />
+            <Circle cx="80"  cy="74" r="10" fill={C.gold}   opacity="0.9" /><Circle cx="80"  cy="74" r="4" fill="#000" />
+            <Circle cx="300" cy="74" r="10" fill="#EF5350" opacity="0.9" /><Circle cx="300" cy="74" r="4" fill="#000" />
           </Svg>
           <View style={st.mapLabel}><Text style={st.mapLabelTxt}>📍 Cairo, Egypt</Text></View>
           <View style={st.mapEta}><Text style={st.mapEtaTxt}>~32 min · 18 km</Text></View>
         </View>
 
         <View style={[st.fields, ar && { direction: 'rtl' }]}>
+          {/* Pickup — tappable, opens LocationPicker */}
           <View>
             <Text style={[st.fieldLabel, ar && st.rtl]}>{t(lang, 'pickupLocation')}</Text>
-            <AppInput ph={ar ? 'مثال: المعادي' : 'e.g. Maadi, Cairo'} value={pickup} onChangeText={setPickup} icon="🟢" />
+            <Pressable onPress={() => setPickerFor('pickup')} style={st.locTapField}>
+              <Text style={st.locTapIco}>🟢</Text>
+              <Text style={[st.locTapTxt, !pickup && st.locTapPh, ar && st.rtl]} numberOfLines={1}>
+                {pickup || (ar ? 'مثال: المعادي، القاهرة' : 'e.g. Maadi, Cairo')}
+              </Text>
+              {pickup ? <View style={st.locCheck}><Text style={st.locCheckTxt}>✓</Text></View>
+                      : <Text style={st.locArrow}>›</Text>}
+            </Pressable>
           </View>
+          {/* Dropoff */}
           <View>
             <Text style={[st.fieldLabel, ar && st.rtl]}>{t(lang, 'destination')}</Text>
-            <AppInput ph={ar ? 'مثال: مطار القاهرة' : 'e.g. Cairo Airport T2'} value={dropoff} onChangeText={setDropoff} icon="🔴" />
+            <Pressable onPress={() => setPickerFor('dropoff')} style={st.locTapField}>
+              <Text style={st.locTapIco}>🔴</Text>
+              <Text style={[st.locTapTxt, !dropoff && st.locTapPh, ar && st.rtl]} numberOfLines={1}>
+                {dropoff || (ar ? 'مثال: مطار القاهرة T2' : 'e.g. Cairo Airport T2')}
+              </Text>
+              {dropoff ? <View style={st.locCheck}><Text style={st.locCheckTxt}>✓</Text></View>
+                       : <Text style={st.locArrow}>›</Text>}
+            </Pressable>
           </View>
           <View style={st.dateRow}>
             {[[t(lang, 'date'), '📅', ar ? 'غداً، 6 يون' : 'Tomorrow, Jun 6'], [t(lang, 'time'), '🕙', '10:00 AM']].map(([lbl, ico, val], i) => (
@@ -107,6 +124,20 @@ function Step1({ data, onNext, lang }: { data: BookData; onNext: (d: BookData) =
           {ar ? 'التالي — اختر سيارتك' : 'Next — Choose Your Car'}
         </GoldBtn>
       </View>
+
+      {/* Location picker modal */}
+      <LocationPicker
+        visible={pickerFor !== null}
+        onClose={() => setPickerFor(null)}
+        onSelect={loc => {
+          if (pickerFor === 'pickup') setPickup(loc);
+          else setDropoff(loc);
+        }}
+        lang={lang}
+        title={pickerFor === 'pickup'
+          ? (ar ? 'موقع الاستلام' : 'Pickup Location')
+          : (ar ? 'الوجهة' : 'Destination')}
+      />
     </View>
   );
 }
@@ -165,13 +196,13 @@ function Step2({ onNext, lang }: { onNext: (car: Car) => void; lang: Lang }) {
 // ─── Step 3: Confirm ─────────────────────────────────────────────────────────
 function Step3({ bookData, car, onConfirm, lang }: { bookData: BookData; car: Car; onConfirm: () => void; lang: Lang }) {
   const ar = lang === 'ar';
-  const [extras, setExtras] = useState({ child: false, stop: false });
+  const [extras, setExtras] = useState({ child: false, driver: false });
   const [promo, setPromo] = useState('');
   const [promoOk, setPromoOk] = useState(false);
   const [promoErr, setPromoErr] = useState(false);
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [pay, setPay] = useState('cash');
-  const extTotal = (extras.child ? 50 : 0) + (extras.stop ? 30 : 0);
+  const extTotal = (extras.child ? 50 : 0); // driver is "charges apply" — no fixed price shown
   const disc = promoOk ? Math.round(car.price * promoDiscount) : 0;
   const total = car.price + extTotal - disc;
 
@@ -202,15 +233,24 @@ function Step3({ bookData, car, onConfirm, lang }: { bookData: BookData; car: Ca
         {/* Extras */}
         <Card style={st.section}>
           <Text style={st.cardSectionTitle}>{t(lang, 'extras')}</Text>
-          {[{k:'child',label:t(lang,'childSeat'),price:50},{k:'stop',label:t(lang,'extraStop'),price:30}].map(e=>(
-            <Pressable key={e.k} onPress={()=>setExtras(x=>({...x,[e.k]:!(x as any)[e.k]}))} style={st.extraRow}>
-              <View style={[st.checkbox, (extras as any)[e.k] && st.checkboxActive]}>
-                {(extras as any)[e.k] ? <Text style={st.checkboxTick}>✓</Text> : null}
-              </View>
-              <Text style={st.extraLbl}>{e.label}</Text>
-              <Text style={st.extraPrice}>+ EGP {e.price}</Text>
-            </Pressable>
-          ))}
+          {/* Child Seat */}
+          <Pressable onPress={() => setExtras(x => ({ ...x, child: !x.child }))} style={st.extraRow}>
+            <View style={[st.checkbox, extras.child && st.checkboxActive]}>
+              {extras.child ? <Text style={st.checkboxTick}>✓</Text> : null}
+            </View>
+            <Text style={st.extraLbl}>{t(lang, 'childSeat')}</Text>
+            <Text style={st.extraPrice}>+ EGP 50</Text>
+          </Pressable>
+          {/* Driver for the Day */}
+          <Pressable onPress={() => setExtras(x => ({ ...x, driver: !x.driver }))} style={[st.extraRow, { borderBottomWidth: 0 }]}>
+            <View style={[st.checkbox, extras.driver && st.checkboxActive]}>
+              {extras.driver ? <Text style={st.checkboxTick}>✓</Text> : null}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={st.extraLbl}>{ar ? 'سائق خاص لليوم' : 'Personal Driver for the Day'}</Text>
+              <Text style={st.extraChargesApply}>{ar ? '* تطبق رسوم إضافية' : '* Charges apply'}</Text>
+            </View>
+          </Pressable>
         </Card>
         {/* Promo */}
         <Card style={st.section}>
@@ -238,11 +278,29 @@ function Step3({ bookData, car, onConfirm, lang }: { bookData: BookData; car: Ca
         {/* Payment */}
         <Card style={st.section}>
           <Text style={st.cardSectionTitle}>{t(lang,'paymentMethod')}</Text>
-          {[{id:'cash',lbl:t(lang,'cashOnPickup'),ico:'💵'},{id:'card',lbl:'**** 4242 Visa',ico:'💳'},{id:'apple',lbl:'Apple Pay',ico:'🍎'}].map(p=>(
-            <Pressable key={p.id} onPress={()=>setPay(p.id)} style={st.payRow}>
-              <View style={[st.radio, pay===p.id&&st.radioActive]} />
-              <Text>{p.ico}</Text>
-              <Text style={st.payLbl}>{p.lbl}</Text>
+          {/* Cash */}
+          {(['cash','card','apple'] as const).map((id, i) => (
+            <Pressable key={id} onPress={() => setPay(id)}
+              style={[st.payRow, i < 2 && { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' }]}>
+              <View style={[st.radio, pay === id && st.radioActive]} />
+              {id === 'cash'  && <Text style={st.payIco}>💵</Text>}
+              {id === 'card'  && <Text style={st.payIco}>💳</Text>}
+              {id === 'apple' && (
+                <View style={st.applePayMark}>
+                  {/* Apple logo (SVG path) */}
+                  <Svg width="14" height="17" viewBox="0 0 814 1000">
+                    <G fill="white">
+                      <Path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 482.8 0 350.4 0 223.8c0-122.8 78-188.2 154.2-188.2 51.4 0 93.7 34.3 125.6 34.3 30.8 0 79.4-36.6 137.4-36.6 54.8 0 98.7 18.3 131.5 55.9zm-72.5-192.9c-.6.3-1.1.7-1.7 1C653.4 97.7 618.9 52.9 618.9 0c0-3.6.3-7.3.6-11 45.4 2.6 100.4 31.7 133.5 65.8 27.8 28.5 51.4 71.6 51.4 116.1v3.4z" />
+                    </G>
+                  </Svg>
+                  <Text style={st.applePayTxt}>Pay</Text>
+                </View>
+              )}
+              {id !== 'apple' && (
+                <Text style={st.payLbl}>
+                  {id === 'cash' ? t(lang,'cashOnPickup') : '**** 4242 Visa'}
+                </Text>
+              )}
             </Pressable>
           ))}
         </Card>
@@ -452,8 +510,22 @@ const st = StyleSheet.create({
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', marginTop: 4 },
   totalKey: { color: C.white, fontSize: 16, fontWeight: '700' },
   totalVal: { color: C.gold, fontSize: 22, fontWeight: '900' },
-  payRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' },
+  payRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' },
   radioActive: { backgroundColor: C.gold, borderColor: C.gold },
+  payIco: { fontSize: 20 },
   payLbl: { color: C.white, fontSize: 14 },
+  // Apple Pay button mark
+  applePayMark: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#000', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 5 },
+  applePayTxt:  { color: '#fff', fontSize: 14, fontWeight: '600', letterSpacing: 0.3 },
+  // Extras new styles
+  extraChargesApply: { color: C.gray, fontSize: 11, marginTop: 2, fontStyle: 'italic' },
+  // LocationPicker tap fields in Step1
+  locTapField: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 52, backgroundColor: C.surface2, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 12, paddingHorizontal: 14 },
+  locTapIco:   { fontSize: 16 },
+  locTapTxt:   { flex: 1, color: C.white, fontSize: 14 },
+  locTapPh:    { color: C.gray },
+  locCheck:    { width: 22, height: 22, borderRadius: 11, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
+  locCheckTxt: { color: '#000', fontSize: 11, fontWeight: '800' },
+  locArrow:    { color: C.gray, fontSize: 18 },
 });

@@ -6,7 +6,6 @@ import AppInput from '../components/AppInput';
 import { C } from '../constants';
 import { t, Lang } from '../i18n';
 import { OFFERS, VALID_PROMO_CODES } from '../data/offers';
-import BrandLogo from '../components/BrandLogo';
 
 interface Props { lang: Lang }
 
@@ -36,7 +35,6 @@ export default function OffersScreen({ lang }: Props) {
 
   return (
     <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-      <BrandLogo style={{ paddingTop: 0, paddingHorizontal: 0 }} />
       <Text style={[styles.title, ar && styles.rtl]}>{t(lang, 'offersAndPromos')}</Text>
 
       {/* Featured Banner */}

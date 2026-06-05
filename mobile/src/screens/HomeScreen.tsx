@@ -7,7 +7,6 @@ import LocationPicker from '../components/LocationPicker';
 import { C } from '../constants';
 import { t, Lang } from '../i18n';
 import { BookData } from '../types';
-import BrandLogo from '../components/BrandLogo';
 
 const REBOOK = [
   { route: 'Maadi → Cairo Airport T2', car: 'Mercedes S-Class', date: 'Jun 2' },
@@ -309,8 +308,6 @@ export default function HomeScreen({ lang, navigate, setBookData }: Props) {
 
   return (
     <ScrollView style={st.scroll} contentContainerStyle={st.content} showsVerticalScrollIndicator={false}>
-      {/* Brand Logo */}
-      <BrandLogo />
       {/* Top Bar */}
       <View style={[st.topBar, ar && st.rowRtl]}>
         <View>
@@ -442,8 +439,8 @@ const st = StyleSheet.create({
   name:          {color:C.white,fontSize:18,fontWeight:'800',marginTop:2},
   rtl:           {textAlign:'right'},
   topRight:      {flexDirection:'row',gap:10,alignItems:'center'},
-  langBtn:       {backgroundColor:C.surface2,borderRadius:8,paddingHorizontal:10,paddingVertical:5,borderWidth:1,borderColor:'rgba(201,162,39,0.3)'},
-  langTxt:       {color:C.gold,fontSize:12,fontWeight:'700'},
+  langBtn:       {backgroundColor:C.surface2,borderRadius:12,width:40,height:40,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'rgba(201,162,39,0.3)'},
+  langTxt:       {color:C.gold,fontSize:14,fontWeight:'700'},
   bellBtn:       {backgroundColor:C.surface2,borderRadius:12,width:40,height:40,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'rgba(255,255,255,0.07)'},
   bellIco:       {fontSize:17},
   bellBadge:     {position:'absolute',top:8,right:8,width:8,height:8,borderRadius:4,backgroundColor:'#EF5350',borderWidth:1.5,borderColor:C.bg},

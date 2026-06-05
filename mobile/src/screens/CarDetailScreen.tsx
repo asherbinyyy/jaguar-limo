@@ -19,7 +19,7 @@ export default function CarDetailScreen({ car, onBack, navigate, lang }: Props) 
     const msg = ar
       ? `مرحباً، أريد الاستفسار عن ${car.name}`
       : `I want to enquire about ${car.name}`;
-    Linking.openURL(`https://wa.me/201113335999?text=${encodeURIComponent(msg)}`);
+    Linking.openURL(`https://wa.me/201156666422?text=${encodeURIComponent(msg)}`);
   };
 
   const specs = [

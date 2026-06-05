@@ -25,8 +25,8 @@ export default function TrackingScreen({ onBack, lang }: Props) {
   }, []);
 
   const actions = [
-    { ico: '📞', lbl: ar ? 'اتصال' : 'Call', bg: C.success, fn: () => Linking.openURL('tel:+201113335999') },
-    { ico: '💬', lbl: 'WhatsApp', bg: '#25D366', fn: () => Linking.openURL('https://wa.me/201113335999') },
+    { ico: '📞', lbl: ar ? 'اتصال' : 'Call', bg: C.success, fn: () => Linking.openURL('tel:+201156666422') },
+    { ico: '💬', lbl: 'WhatsApp', bg: '#25D366', fn: () => Linking.openURL('https://wa.me/201156666422') },
     { ico: '📤', lbl: ar ? 'مشاركة' : 'Share', bg: C.surface3, fn: () => {} },
     { ico: '🆘', lbl: 'SOS', bg: C.error, fn: () => setSosModal(true) },
   ];
@@ -94,7 +94,7 @@ export default function TrackingScreen({ onBack, lang }: Props) {
             <Pressable onPress={() => { Linking.openURL('tel:180'); setSosModal(false); }} style={styles.sosBtn}>
               <Text style={styles.sosBtnTxt}>{ar ? '🚑 اتصل بالإسعاف — 180' : '🚑 Call Ambulance — 180'}</Text>
             </Pressable>
-            <Pressable onPress={() => { Linking.openURL('https://wa.me/201113335999'); setSosModal(false); }} style={styles.sosBtn}>
+            <Pressable onPress={() => { Linking.openURL('https://wa.me/201156666422'); setSosModal(false); }} style={styles.sosBtn}>
               <Text style={styles.sosBtnTxt}>{ar ? '📤 مشاركة موقعك' : '📤 Share Live Location'}</Text>
             </Pressable>
             <Pressable onPress={() => setSosModal(false)} style={styles.sosCancelBtn}>

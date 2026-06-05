@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Animated, Image } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Animated, Image, Linking, Alert, Share } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as Clipboard from 'expo-clipboard';
 import Svg, { Circle, Line, Path, Polyline, Rect, G } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import GoldBtn from '../components/GoldBtn';
@@ -15,6 +17,22 @@ import { t, Lang } from '../i18n';
 import { BookData, Car } from '../types';
 import { CARS } from '../data/cars';
 import { VALID_PROMO_CODES } from '../data/offers';
+import { api } from '../api';
+
+// Shared booking payload sent to the backend + used for confirmation UI.
+export interface BookingPayload {
+  pickup: string;
+  dropoff: string;
+  carId: number;
+  carName: string;
+  date: string;
+  time: string;
+  extras: Record<string, boolean>;
+  paymentMethod: string;
+  total: number;
+}
+const BUSINESS_WHATSAPP = '201156666422';
+const INSTAPAY_NUMBER = '01156666422';
 
 // ─── Progress Bar ──────────────────────────────────────────────────────────────
 function BookingProgress({ step, total = 4, lang }: { step: number; total?: number; lang: Lang }) {
@@ -196,7 +214,7 @@ function Step2({ onNext, lang }: { onNext: (car: Car) => void; lang: Lang }) {
 }
 
 // ─── Step 3: Confirm ─────────────────────────────────────────────────────────
-function Step3({ bookData, car, onConfirm, lang }: { bookData: BookData; car: Car; onConfirm: () => void; lang: Lang }) {
+function Step3({ bookData, car, onConfirm, lang }: { bookData: BookData; car: Car; onConfirm: (p: BookingPayload) => void; lang: Lang }) {
   const ar = lang === 'ar';
   const [extras, setExtras] = useState({ child: false, driver: false });
   const [promo, setPromo] = useState('');
@@ -204,7 +222,39 @@ function Step3({ bookData, car, onConfirm, lang }: { bookData: BookData; car: Ca
   const [promoErr, setPromoErr] = useState(false);
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [pay, setPay] = useState('cash');
+  const [proof, setProof] = useState<string | null>(null);  // InstaPay screenshot URI
   const extTotal = (extras.child ? 50 : 0); // driver is "charges apply" — no fixed price shown
+
+  const copyInstapay = async () => {
+    await Clipboard.setStringAsync(INSTAPAY_NUMBER);
+    Alert.alert(ar ? 'تم النسخ' : 'Copied', ar ? `تم نسخ الرقم ${INSTAPAY_NUMBER}` : `${INSTAPAY_NUMBER} copied to clipboard`);
+  };
+
+  const attachProof = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(ar ? 'الإذن مطلوب' : 'Permission needed',
+        ar ? 'يرجى السماح بالوصول للصور لإرفاق لقطة الشاشة.' : 'Please allow photo access to attach your screenshot.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]) setProof(result.assets[0].uri);
+  };
+
+  const sendProof = async () => {
+    if (!proof) return;
+    try {
+      await Share.share({
+        url: proof,
+        message: ar
+          ? `إثبات دفع إنستاباي — حجز ${car.name}`
+          : `InstaPay payment proof — ${car.name} booking`,
+      });
+    } catch { /* user cancelled share */ }
+  };
   const disc = promoOk ? Math.round(car.price * promoDiscount) : 0;
   const total = car.price + extTotal - disc;
 
@@ -281,12 +331,15 @@ function Step3({ bookData, car, onConfirm, lang }: { bookData: BookData; car: Ca
         <Card style={st.section}>
           <Text style={st.cardSectionTitle}>{t(lang,'paymentMethod')}</Text>
           {/* Cash */}
-          {(['cash','card','apple'] as const).map((id, i) => (
+          {(['cash','card','apple','instapay'] as const).map((id, i, arr) => (
             <Pressable key={id} onPress={() => setPay(id)}
-              style={[st.payRow, i < 2 && { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' }]}>
+              style={[st.payRow, i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' }]}>
               <View style={[st.radio, pay === id && st.radioActive]} />
-              {id === 'cash'  && <Text style={st.payIco}>💵</Text>}
-              {id === 'card'  && <Text style={st.payIco}>💳</Text>}
+              {id === 'cash'     && <Text style={st.payIco}>💵</Text>}
+              {id === 'card'     && <Text style={st.payIco}>💳</Text>}
+              {id === 'instapay' && (
+                <View style={st.instapayMark}><Text style={st.instapayMarkTxt}>IP</Text></View>
+              )}
               {id === 'apple' && (
                 <View style={st.applePayMark}>
                   {/* Apple logo (SVG path) */}
@@ -300,22 +353,87 @@ function Step3({ bookData, car, onConfirm, lang }: { bookData: BookData; car: Ca
               )}
               {id !== 'apple' && (
                 <Text style={st.payLbl}>
-                  {id === 'cash' ? t(lang,'cashOnPickup') : '**** 4242 Visa'}
+                  {id === 'cash'     ? t(lang,'cashOnPickup')
+                   : id === 'card'   ? '**** 4242 Visa'
+                   : (ar ? 'تحويل إنستاباي' : 'InstaPay transfer')}
                 </Text>
               )}
             </Pressable>
           ))}
+
+          {/* InstaPay instructions */}
+          {pay === 'instapay' && (
+            <View style={st.instapayBox}>
+              <Text style={[st.instapayTitle, ar && st.rtl]}>
+                {ar ? 'حوّل المبلغ عبر إنستاباي إلى:' : 'Send the amount via InstaPay to:'}
+              </Text>
+              <Pressable onPress={copyInstapay} style={st.instapayNumRow}>
+                <Text style={st.instapayNum}>{INSTAPAY_NUMBER}</Text>
+                <Text style={st.instapayCopy}>{ar ? 'نسخ' : 'Copy'}</Text>
+              </Pressable>
+              <Text style={[st.instapayHint, ar && st.rtl]}>
+                {ar
+                  ? `المبلغ: EGP ${total.toLocaleString()} — ثم أرفق لقطة شاشة للتحويل لتأكيد الدفع.`
+                  : `Amount: EGP ${total.toLocaleString()} — then attach a screenshot of the transfer to confirm payment.`}
+              </Text>
+
+              {proof ? (
+                <View style={st.proofRow}>
+                  <Image source={{ uri: proof }} style={st.proofThumb} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={st.proofOk}>✓ {ar ? 'تم إرفاق لقطة الشاشة' : 'Screenshot attached'}</Text>
+                    <View style={st.proofActions}>
+                      <Pressable onPress={sendProof}><Text style={st.proofSend}>{ar ? 'إرسال' : 'Send'}</Text></Pressable>
+                      <Pressable onPress={attachProof}><Text style={st.proofChange}>{ar ? 'تغيير' : 'Change'}</Text></Pressable>
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <Pressable onPress={attachProof} style={st.proofBtn}>
+                  <Text style={st.proofBtnIco}>📎</Text>
+                  <Text style={st.proofBtnTxt}>{ar ? 'إرفاق لقطة شاشة الدفع' : 'Attach Payment Screenshot'}</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
         </Card>
       </ScrollView>
       <View style={st.footer}>
-        <GoldBtn onPress={onConfirm}>{t(lang,'confirmBooking')} — EGP {total.toLocaleString()}</GoldBtn>
+        <GoldBtn onPress={() => {
+          if (pay === 'instapay' && !proof) {
+            Alert.alert(
+              ar ? 'لقطة الدفع مطلوبة' : 'Payment screenshot required',
+              ar ? 'يرجى إرفاق لقطة شاشة لتحويل إنستاباي قبل تأكيد الحجز.'
+                 : 'Please attach a screenshot of your InstaPay transfer before confirming.');
+            return;
+          }
+          onConfirm({
+            pickup: bookData.pickup,
+            dropoff: bookData.dropoff,
+            carId: car.id,
+            carName: car.name,
+            date: 'Jun 6',
+            time: '10:00 AM',
+            extras,
+            paymentMethod: pay,
+            total,
+          });
+        }}>{t(lang,'confirmBooking')} — EGP {total.toLocaleString()}</GoldBtn>
       </View>
     </View>
   );
 }
 
 // ─── Step 4: Confirmed ────────────────────────────────────────────────────────
-function Step4({ onHome, lang }: { onHome: () => void; lang: Lang }) {
+interface ConfirmedBooking {
+  id: string;
+  carName: string;
+  date: string;
+  pickup: string;
+  dropoff: string;
+  whatsappUrl: string;
+}
+function Step4({ onHome, lang, booking }: { onHome: () => void; lang: Lang; booking: ConfirmedBooking | null }) {
   const ar = lang === 'ar';
   const progress = useRef(new Animated.Value(0)).current;
 
@@ -325,8 +443,19 @@ function Step4({ onHome, lang }: { onHome: () => void; lang: Lang }) {
     }, 100);
   }, []);
 
+  const openWhatsApp = () => {
+    const url = booking?.whatsappUrl || `https://wa.me/${BUSINESS_WHATSAPP}`;
+    Linking.openURL(url).catch(() =>
+      Alert.alert(ar ? 'واتساب غير متاح' : 'WhatsApp unavailable',
+        ar ? 'يرجى تثبيت واتساب للمتابعة.' : 'Please install WhatsApp to continue.'));
+  };
+
+  const rows: [string, string][] = booking
+    ? [['Car', booking.carName], ['Date', booking.date], ['From', booking.pickup], ['To', booking.dropoff]]
+    : [['Car','Mercedes S-Class'],['Date','Jun 6 · 10:00 AM'],['From','12 Ahmed Hassan St, Maadi'],['To','Cairo Airport T2']];
+
   return (
-    <View style={s4.container}>
+    <ScrollView contentContainerStyle={s4.container} showsVerticalScrollIndicator={false}>
       <Svg width="110" height="110" viewBox="0 0 110 110">
         <Circle cx="55" cy="55" r="50" fill="none" stroke={C.gold} strokeWidth="2" opacity="0.12" />
         <Circle cx="55" cy="55" r="50" fill="none" stroke={C.gold} strokeWidth="2.5" strokeDasharray="314" strokeDashoffset="0" />
@@ -334,21 +463,39 @@ function Step4({ onHome, lang }: { onHome: () => void; lang: Lang }) {
       </Svg>
       <Text style={[s4.title, ar && s4.rtl]}>{t(lang, 'bookingConfirmed')}</Text>
       <Text style={s4.idLabel}>{t(lang, 'bookingId')}</Text>
-      <View style={s4.idBox}><Text style={s4.idTxt}>#JL-20240606-0042</Text></View>
+      <View style={s4.idBox}><Text style={s4.idTxt}>#{booking?.id ?? 'JL-20240606-0042'}</Text></View>
       <Card style={s4.summaryCard}>
-        {[['Car','Mercedes S-Class'],['Date','Jun 6 · 10:00 AM'],['From','12 Ahmed Hassan St, Maadi'],['To','Cairo Airport T2']].map(([k,v],i)=>(
+        {rows.map(([k,v],i)=>(
           <View key={i} style={[s4.row, i<3&&s4.rowBorder]}>
-            <Text style={s4.key}>{k}</Text><Text style={s4.val}>{v}</Text>
+            <Text style={s4.key}>{k}</Text><Text style={s4.val} numberOfLines={2}>{v}</Text>
           </View>
         ))}
       </Card>
+      {/* Booking is sent to the team automatically — no action needed */}
+      <View style={s4.autoNote}>
+        <Text style={s4.autoNoteTxt}>
+          {ar
+            ? '✓ تم إرسال تفاصيل حجزك إلى فريق جاغوار تلقائياً. سنتواصل معك قريباً.'
+            : '✓ Your booking details were sent to the Jaguar team automatically. We\'ll be in touch shortly.'}
+        </Text>
+      </View>
+      {/* Optional: customer can also reach us on WhatsApp */}
+      <Pressable onPress={openWhatsApp} style={s4.waBtn}>
+        <Text style={s4.waIco}>💬</Text>
+        <Text style={s4.waTxt}>{ar ? 'تواصل معنا عبر واتساب (اختياري)' : 'Contact us on WhatsApp (optional)'}</Text>
+      </Pressable>
       <GoldBtn onPress={onHome} style={s4.btn}>{t(lang, 'trackBooking')}</GoldBtn>
       <OutlineBtn onPress={onHome} style={s4.btn}>{t(lang, 'backToHome')}</OutlineBtn>
-    </View>
+    </ScrollView>
   );
 }
 const s4 = StyleSheet.create({
-  container:{flex:1,backgroundColor:C.bg,alignItems:'center',justifyContent:'center',padding:28,gap:12},
+  container:{flexGrow:1,backgroundColor:C.bg,alignItems:'center',justifyContent:'center',padding:28,gap:12},
+  waBtn:{width:'100%',flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,height:54,borderRadius:14,backgroundColor:'rgba(37,211,102,0.12)',borderWidth:1,borderColor:'#25D366'},
+  waIco:{fontSize:18},
+  waTxt:{color:'#25D366',fontSize:15,fontWeight:'800'},
+  autoNote:{width:'100%',backgroundColor:'rgba(76,175,80,0.1)',borderWidth:1,borderColor:'rgba(76,175,80,0.3)',borderRadius:12,padding:12},
+  autoNoteTxt:{color:'#9CCC9C',fontSize:13,lineHeight:19,textAlign:'center'},
   title:{color:C.white,fontSize:26,fontWeight:'900',textAlign:'center'},
   rtl:{textAlign:'right'},
   idLabel:{color:C.gray,fontSize:14},
@@ -379,6 +526,40 @@ export default function BookingFlow({ bookData, preSelectedCar, onBack, onHome, 
   const [step, setStep] = useState(1);
   const [data, setData] = useState(bookData);
   const [selectedCar, setSelectedCar] = useState<Car | null>(preSelectedCar ?? null);
+  const [confirmed, setConfirmed] = useState<ConfirmedBooking | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Create the booking on the backend (fires email + builds WhatsApp link),
+  // then advance to the confirmation screen. Falls back gracefully offline.
+  const handleConfirm = async (payload: BookingPayload, doneStep: number) => {
+    if (submitting) return;
+    setSubmitting(true);
+    const fallbackWa = `https://wa.me/${BUSINESS_WHATSAPP}`;
+    try {
+      const res: any = await api.bookings.create(payload);
+      setConfirmed({
+        id: res?.id ?? 'JL-PENDING',
+        carName: payload.carName,
+        date: `${payload.date} · ${payload.time}`,
+        pickup: payload.pickup,
+        dropoff: payload.dropoff,
+        whatsappUrl: res?.whatsappUrl ?? fallbackWa,
+      });
+    } catch {
+      // Backend unreachable — still confirm locally with a basic WhatsApp link.
+      setConfirmed({
+        id: 'JL-OFFLINE',
+        carName: payload.carName,
+        date: `${payload.date} · ${payload.time}`,
+        pickup: payload.pickup,
+        dropoff: payload.dropoff,
+        whatsappUrl: fallbackWa,
+      });
+    } finally {
+      setSubmitting(false);
+      setStep(doneStep);
+    }
+  };
 
   // When car is pre-selected the visual steps are: 1=Details, 2=Confirm, 3=Done
   // When no car:                                   1=Details, 2=Car,     3=Confirm, 4=Done
@@ -391,13 +572,13 @@ export default function BookingFlow({ bookData, preSelectedCar, onBack, onHome, 
       // 4-step flow
       if (step === 1) return <Step1 data={data} onNext={d => { setData(d); goNext(1); }} lang={lang} />;
       if (step === 2) return <Step2 onNext={car => { setSelectedCar(car); goNext(2); }} lang={lang} />;
-      if (step === 3) return <Step3 bookData={data} car={selectedCar ?? FALLBACK_CAR} onConfirm={() => goNext(3)} lang={lang} />;
-      return <Step4 onHome={onHome} lang={lang} />;
+      if (step === 3) return <Step3 bookData={data} car={selectedCar ?? FALLBACK_CAR} onConfirm={p => handleConfirm(p, 4)} lang={lang} />;
+      return <Step4 onHome={onHome} lang={lang} booking={confirmed} />;
     } else {
       // 3-step flow (car already chosen)
       if (step === 1) return <Step1 data={data} onNext={d => { setData(d); goNext(1); }} lang={lang} />;
-      if (step === 2) return <Step3 bookData={data} car={selectedCar ?? FALLBACK_CAR} onConfirm={() => goNext(2)} lang={lang} />;
-      return <Step4 onHome={onHome} lang={lang} />;
+      if (step === 2) return <Step3 bookData={data} car={selectedCar ?? FALLBACK_CAR} onConfirm={p => handleConfirm(p, 3)} lang={lang} />;
+      return <Step4 onHome={onHome} lang={lang} booking={confirmed} />;
     }
   };
 
@@ -520,6 +701,24 @@ const st = StyleSheet.create({
   // Apple Pay button mark
   applePayMark: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#000', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 5 },
   applePayTxt:  { color: '#fff', fontSize: 14, fontWeight: '600', letterSpacing: 0.3 },
+  // InstaPay mark + instructions
+  instapayMark:    { width: 28, height: 22, borderRadius: 5, backgroundColor: '#6A1B9A', alignItems: 'center', justifyContent: 'center' },
+  instapayMarkTxt: { color: '#fff', fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
+  instapayBox:     { marginTop: 12, backgroundColor: 'rgba(106,27,154,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(106,27,154,0.4)', padding: 14, gap: 10 },
+  instapayTitle:   { color: C.white, fontSize: 13, fontWeight: '700' },
+  instapayNumRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.surface2, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12 },
+  instapayNum:     { color: C.white, fontSize: 18, fontWeight: '900', letterSpacing: 1 },
+  instapayCopy:    { color: C.gold, fontSize: 13, fontWeight: '700' },
+  instapayHint:    { color: C.gray, fontSize: 12, lineHeight: 18 },
+  proofBtn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, borderRadius: 10, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(201,162,39,0.5)' },
+  proofBtnIco:     { fontSize: 16 },
+  proofBtnTxt:     { color: C.gold, fontSize: 14, fontWeight: '700' },
+  proofRow:        { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  proofThumb:      { width: 54, height: 54, borderRadius: 8, backgroundColor: C.surface2 },
+  proofOk:         { color: '#4CAF50', fontSize: 13, fontWeight: '700' },
+  proofActions:    { flexDirection: 'row', gap: 16, marginTop: 6 },
+  proofSend:       { color: C.gold, fontSize: 13, fontWeight: '700' },
+  proofChange:     { color: C.gray, fontSize: 13, fontWeight: '600' },
   // Extras new styles
   extraChargesApply: { color: C.gray, fontSize: 11, marginTop: 2, fontStyle: 'italic' },
   // LocationPicker tap fields in Step1

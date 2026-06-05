@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { sendBookingEmail, buildWhatsAppUrl, sendWhatsAppAuto, BookingDetails } from '../lib/notify';
 
 const router = Router();
 
@@ -22,18 +23,20 @@ router.get('/:id', (req, res) => {
   res.json(bk);
 });
 
-router.post('/', (req, res) => {
-  const { pickup, dropoff, carId, carName, date, time, userId, extras, paymentMethod, total } = req.body;
+router.post('/', async (req, res) => {
+  const { pickup, dropoff, carId, carName, date, time, userId, extras, paymentMethod, total, customerName, customerPhone } = req.body;
 
   const now = new Date();
   const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
   const id = `JL-${dateStr}-${String(bookingCounter++).padStart(4,'0')}`;
 
+  const dateLabel = [date, time].filter(Boolean).join(' · ');
+
   const newBooking = {
     id,
     userId: userId || 'user_1',
     route: `${pickup} → ${dropoff}`,
-    date: `${date} · ${time}`,
+    date: dateLabel,
     car: carName,
     status: 'confirmed',
     price: total,
@@ -44,7 +47,28 @@ router.post('/', (req, res) => {
 
   bookings.unshift(newBooking);
   console.log(`📋 New booking: ${id} — ${carName} — EGP ${total}`);
-  res.status(201).json(newBooking);
+
+  // Build notification payload (shared by email + WhatsApp).
+  const details: BookingDetails = {
+    id, carName, pickup, dropoff, date: dateLabel,
+    total, paymentMethod, extras, customerName, customerPhone,
+  };
+
+  // WhatsApp deep link to the business number, prefilled with details.
+  const whatsappUrl = buildWhatsAppUrl(details);
+
+  // Fire the email + automatic WhatsApp in parallel.
+  const [emailResult, waResult] = await Promise.all([
+    sendBookingEmail(details).catch(() => ({ ok: false })),
+    sendWhatsAppAuto(details).catch(() => ({ ok: false })),
+  ]);
+
+  res.status(201).json({
+    ...newBooking,
+    whatsappUrl,
+    emailSent: emailResult.ok,
+    whatsappSent: (waResult as any).ok,
+  });
 });
 
 router.patch('/:id/cancel', (req, res) => {

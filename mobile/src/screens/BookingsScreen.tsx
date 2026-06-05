@@ -8,7 +8,6 @@ import PulseDot from '../components/PulseDot';
 import { C } from '../constants';
 import { t, Lang } from '../i18n';
 import { BOOKINGS_DATA } from '../data/offers';
-import BrandLogo from '../components/BrandLogo';
 
 interface Props { lang: Lang; navigate: (d: string) => void }
 
@@ -22,7 +21,6 @@ export default function BookingsScreen({ lang, navigate }: Props) {
 
   return (
     <View style={[styles.container, ar && styles.rtlView]}>
-      <BrandLogo />
       {/* Header + Tabs */}
       <View style={styles.header}>
         <Text style={[styles.title, ar && styles.rtl]}>{t(lang, 'myBookings')}</Text>

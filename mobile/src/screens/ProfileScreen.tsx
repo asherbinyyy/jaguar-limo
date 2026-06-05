@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Linking, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Card from '../components/Card';
-import BrandLogo from '../components/BrandLogo';
 import { C } from '../constants';
 import { t, Lang } from '../i18n';
 
@@ -52,14 +51,14 @@ export default function ProfileScreen({ lang, navigate }: Props) {
         { ico:'🏢', lbl: t(lang, 'corporateClients'), arrow: false },
         { ico:'🕐', lbl: t(lang, 'support24'), arrow: false },
         { ico:'📍', lbl: t(lang, 'address'), val: t(lang, 'addressValue'), arrow: false },
-        { ico:'📞', lbl: t(lang, 'callUs'), val: '+201113335999', arrow: true, fn: () => call('+201113335999') },
+        { ico:'📞', lbl: t(lang, 'callUs'), val: '+201156666422', arrow: true, fn: () => call('+201156666422') },
         { ico:'📧', lbl: t(lang, 'emailUs'), val: 'Info@jaguarlimousine.com', arrow: true, fn: () => email('Info@jaguarlimousine.com') },
       ],
     },
     {
       title: t(lang, 'support'),
       rows: [
-        { ico:'💬', lbl: t(lang, 'contactSupport'), arrow: true, fn: () => Linking.openURL('https://wa.me/201113335999') },
+        { ico:'💬', lbl: t(lang, 'contactSupport'), arrow: true, fn: () => Linking.openURL('https://wa.me/201156666422') },
         { ico:'⭐', lbl: t(lang, 'rateApp'), arrow: true },
         { ico:'📱', lbl: t(lang, 'appVersion'), val: 'v1.0.0' },
       ],
@@ -68,7 +67,6 @@ export default function ProfileScreen({ lang, navigate }: Props) {
 
   return (
     <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-      <BrandLogo />
       {/* Profile Header */}
       <LinearGradient colors={['rgba(26,77,46,0.28)', 'transparent']} style={styles.profileHeader}>
         <View style={[styles.profileRow, ar && styles.rowRtl]}>

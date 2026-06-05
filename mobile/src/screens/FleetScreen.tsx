@@ -7,7 +7,6 @@ import { C } from '../constants';
 import { t, Lang } from '../i18n';
 import { CARS } from '../data/cars';
 import { Car } from '../types';
-import BrandLogo from '../components/BrandLogo';
 
 interface Props { lang: Lang; navigate: (dest: string, payload?: any) => void }
 
@@ -53,7 +52,6 @@ export default function FleetScreen({ lang, navigate }: Props) {
 
   return (
     <View style={styles.container}>
-      <BrandLogo />
       <View style={styles.header}>
         <Text style={[styles.title, ar && styles.rtl]}>{t(lang, 'ourFleet')}</Text>
         <Text style={[styles.sub, ar && styles.rtl]}>{t(lang, 'fleetSub')}</Text>

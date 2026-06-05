@@ -163,6 +163,7 @@ export default function App() {
           <View style={s.fill}>{overlay}</View>
         ) : (
           <View style={s.fill}>
+            {tab !== 'profile' && <BrandLogo />}
             <View style={s.tabContent}>
               {tab === 'home'     && <HomeScreen lang={lang} navigate={navigate} setBookData={setBookData} />}
               {tab === 'fleet'    && <FleetScreen lang={lang} navigate={navigate} />}

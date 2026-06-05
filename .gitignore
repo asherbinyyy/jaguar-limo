@@ -38,6 +38,9 @@ logs/
 # Build output
 /backend/dist/
 
+# Claude Code session files
+.claude/
+
 # IDE
 .vscode/
 .idea/

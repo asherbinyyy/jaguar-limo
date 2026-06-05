@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AppInput from '../components/AppInput';
 import SectionHeader from '../components/SectionHeader';
@@ -8,19 +8,18 @@ import { C } from '../constants';
 import { t, Lang } from '../i18n';
 import { BookData } from '../types';
 
-// ─── Static data ──────────────────────────────────────────────────────────────
 const REBOOK = [
   { route: 'Maadi → Cairo Airport T2', car: 'Mercedes S-Class', date: 'Jun 2' },
   { route: 'Zamalek → New Cairo',       car: 'Audi Q7',          date: 'May 28' },
 ];
-
 const HOME_OFFERS = [
   { title: '15% Off Airport Rides',  sub: 'Code: AIRPORT15',    exp: 'Ends Jun 10', dark: true  },
   { title: 'Eid Special — 20% Off',  sub: 'All rides this week', exp: 'Ends Jun 8',  dark: false },
   { title: 'Monthly Plan Discount',  sub: '30 rides / month',    exp: 'Limited',     dark: true  },
 ];
 
-type RentalType = 'daily' | 'hourly' | 'monthly';
+const TERMINALS = ['T1', 'T2', 'T3'];
+type RentalType = 'daily' | 'monthly' | 'airport';
 
 interface Props {
   lang: Lang;
@@ -28,377 +27,338 @@ interface Props {
   setBookData: (d: BookData) => void;
 }
 
-// ─── Duration Hero ─────────────────────────────────────────────────────────────
-function DurationHero({ lang, onSearch }: { lang: Lang; onSearch: () => void }) {
+function DurationHero({ lang, onSearch }: { lang: Lang; onSearch: (type: RentalType) => void }) {
   const ar = lang === 'ar';
-  const [type, setType]       = useState<RentalType>('daily');
+  const [type, setType] = useState<RentalType>('daily');
   const [location, setLocation] = useState('');
+  const [days, setDays] = useState(4);
+  const [months, setMonths] = useState(1);
+  const [terminal, setTerminal] = useState('T2');
+  const [flightNo, setFlightNo] = useState('');
+  const pickupDate = ar ? 'الثلاثاء، 6 يونيو' : 'Tue, Jun 6';
+  const startMonth = ar ? 'يونيو 2025' : 'June 2025';
 
-  // Daily state
-  const [pickupDate,  setPickupDate]  = useState(ar ? 'الثلاثاء، 6 يونيو' : 'Tue, Jun 6');
-  const [returnDate,  setReturnDate]  = useState(ar ? 'الجمعة، 9 يونيو'   : 'Fri, Jun 9');
+  const returnLabel = (() => {
+    const d = new Date(2025, 5, 6);
+    d.setDate(d.getDate() + days);
+    return d.toLocaleDateString(ar ? 'ar-EG' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short' });
+  })();
 
-  // Hourly state
-  const [startTime,   setStartTime]   = useState('10:00 AM');
-  const [hours,       setHours]       = useState(3);
+  const handleTabPress = (id: RentalType) => {
+    setType(id);
+    if (id === 'monthly') {
+      setTimeout(() => {
+        Alert.alert(
+          ar ? '🎁 عروض خاصة للإيجار الشهري' : '🎁 Monthly Rental Special Offers',
+          ar
+            ? '• خصم 20% على الإيجار الشهري\n• سائق مخصص طوال الشهر\n• رحلة مطار مجانية شهرياً\n• أولوية في الحجز والدعم 24/7\n\nتواصل معنا لعرض مخصص.'
+            : '• 20% off on monthly rentals\n• Dedicated driver all month\n• 1 free airport transfer/month\n• Priority booking & 24/7 support\n\nContact us for a custom quote.',
+          [{ text: ar ? 'رائع! 👍' : 'Sounds great! 👍', style: 'default' }]
+        );
+      }, 120);
+    }
+  };
 
-  // Monthly state
-  const [startMonth,  setStartMonth]  = useState(ar ? 'يونيو 2025'   : 'June 2025');
-  const [months,      setMonths]      = useState(1);
-
-  const TABS: { id: RentalType; en: string; ar: string }[] = [
-    { id: 'daily',   en: 'Daily',   ar: 'يومي'   },
-    { id: 'hourly',  en: 'Hourly',  ar: 'بالساعة' },
-    { id: 'monthly', en: 'Monthly', ar: 'شهري'   },
+  const TABS = [
+    { id: 'daily' as RentalType,   en: 'Daily',          ar: 'يومي',        ico: '📅' },
+    { id: 'monthly' as RentalType, en: 'Monthly',         ar: 'شهري',        ico: '🗓️' },
+    { id: 'airport' as RentalType, en: 'Airport Pickup',  ar: 'استلام مطار', ico: '✈️' },
   ];
 
   return (
-    <LinearGradient
-      colors={['#1A4D2E', '#0A2015', '#060E09']}
-      start={{ x: 0, y: 0 }} end={{ x: 0.8, y: 1 }}
-      style={s.hero}
-    >
-      {/* Header */}
-      <View style={[s.heroHeader, ar && s.rowRtl]}>
-        <View style={s.heroTitles}>
-          <Text style={[s.heroLabel, ar && s.rtl]}>{ar ? 'اختر مدة الإيجار' : 'Select Rental Duration'}</Text>
-          <Text style={[s.heroTitle, ar && s.rtl]}>{ar ? 'احجز سيارتك الآن' : 'Book Your Car'}</Text>
-        </View>
-        {/* Live car count badge */}
-        <View style={s.carsBadge}>
-          <Text style={s.carsBadgeNum}>9</Text>
-          <Text style={s.carsBadgeSub}>{ar ? 'سيارات\nمتاحة' : 'cars\navail.'}</Text>
-        </View>
+    <LinearGradient colors={['#1A4D2E','#0A2015','#060E09']} start={{x:0,y:0}} end={{x:0.8,y:1}} style={s.hero}>
+      {/* Title */}
+      <View>
+        <Text style={[s.heroLabel, ar && s.rtl]}>{ar ? 'اختر نوع الحجز' : 'Choose Booking Type'}</Text>
+        <Text style={[s.heroTitle, ar && s.rtl]}>{ar ? 'احجز سيارتك الآن' : 'Book Your Car'}</Text>
       </View>
 
-      {/* Type Tabs */}
-      <View style={[s.tabsRow, ar && s.rowRtl]}>
+      {/* Tab row */}
+      <View style={[s.tabsRow, ar && {flexDirection:'row-reverse'}]}>
         {TABS.map(tab => (
-          <Pressable
-            key={tab.id}
-            onPress={() => setType(tab.id)}
-            style={[s.typeTab, type === tab.id && s.typeTabActive]}
-          >
-            <Text style={[s.typeTabTxt, type === tab.id && s.typeTabTxtActive]}>
-              {ar ? tab.ar : tab.en}
-            </Text>
+          <Pressable key={tab.id} onPress={() => handleTabPress(tab.id)}
+            style={[s.typeTab, type === tab.id && s.typeTabActive]}>
+            <Text style={s.typeTabIco}>{tab.ico}</Text>
+            <Text style={[s.typeTabTxt, type === tab.id && s.typeTabTxtActive]}>{ar ? tab.ar : tab.en}</Text>
           </Pressable>
         ))}
       </View>
 
-      {/* Location */}
-      <AppInput
-        ph={ar ? 'ابحث عن موقع الاستلام...' : 'Search pickup location...'}
-        value={location}
-        onChangeText={setLocation}
-        icon="📍"
-        style={s.locInput}
-        containerStyle={s.locWrap}
-      />
-
-      {/* Duration fields — change per tab */}
-      {type === 'daily' && (
-        <View style={[s.datesRow, ar && s.rowRtl]}>
-          <Pressable style={s.dateBox}>
-            <Text style={s.dateBoxLabel}>{ar ? '📅 الاستلام' : '📅 Pick-up'}</Text>
+      {/* ── DAILY ── */}
+      {type === 'daily' && <>
+        <AppInput ph={ar ? 'موقع الاستلام...' : 'Search pickup location...'} value={location} onChangeText={setLocation} icon="📍" style={s.locInput}/>
+        <View style={[s.datesRow, ar && {flexDirection:'row-reverse'}]}>
+          <View style={s.dateBox}>
+            <Text style={s.dateBoxLbl}>{ar ? '📅 الاستلام' : '📅 Pick-up'}</Text>
             <Text style={s.dateBoxVal}>{pickupDate}</Text>
-          </Pressable>
-          <View style={s.dateDivider}>
-            <Text style={s.dateDividerTxt}>→</Text>
           </View>
-          <Pressable style={s.dateBox}>
-            <Text style={s.dateBoxLabel}>{ar ? '📅 الإعادة' : '📅 Return'}</Text>
-            <Text style={s.dateBoxVal}>{returnDate}</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {type === 'hourly' && (
-        <View style={[s.datesRow, ar && s.rowRtl]}>
-          <Pressable style={s.dateBox}>
-            <Text style={s.dateBoxLabel}>{ar ? '🕙 وقت البداية' : '🕙 Start Time'}</Text>
-            <Text style={s.dateBoxVal}>{startTime}</Text>
-          </Pressable>
-          <View style={s.dateDivider}>
-            <View style={s.stepperWrap}>
-              <Pressable onPress={() => setHours(h => Math.max(1, h - 1))} style={s.stepBtn}>
-                <Text style={s.stepBtnTxt}>−</Text>
-              </Pressable>
-              <View style={s.stepValue}>
-                <Text style={s.stepValueNum}>{hours}</Text>
-                <Text style={s.stepValueLbl}>{ar ? 'ساعة' : 'hr'}</Text>
-              </View>
-              <Pressable onPress={() => setHours(h => Math.min(24, h + 1))} style={s.stepBtn}>
-                <Text style={s.stepBtnTxt}>+</Text>
-              </Pressable>
-            </View>
-          </View>
+          <Text style={s.dateSep}>→</Text>
           <View style={s.dateBox}>
-            <Text style={s.dateBoxLabel}>{ar ? '⏱ الانتهاء تقريباً' : '⏱ Est. Return'}</Text>
-            <Text style={s.dateBoxVal}>
-              {(() => {
-                const [h, period] = startTime.split(' ');
-                const [hr] = h.split(':');
-                const newHr = (parseInt(hr) + hours) % 12 || 12;
-                const newPeriod = (parseInt(hr) + hours) >= 12 ? 'PM' : 'AM';
-                return `${newHr}:00 ${newPeriod}`;
-              })()}
-            </Text>
+            <Text style={s.dateBoxLbl}>{ar ? '📅 الإعادة' : '📅 Return'}</Text>
+            <Text style={s.dateBoxVal}>{returnLabel}</Text>
           </View>
         </View>
-      )}
+        <View style={[s.stepCard, ar && {flexDirection:'row-reverse'}]}>
+          <View style={{flex:1}}>
+            <Text style={s.stepCardTitle}>{ar ? 'عدد الأيام' : 'Number of Days'}</Text>
+            <Text style={s.stepCardNote}>{ar ? '● الحد الأدنى 4 أيام' : '● Minimum 4 days'}</Text>
+          </View>
+          <View style={s.stepControls}>
+            <Pressable onPress={() => setDays(d => Math.max(4, d-1))} style={[s.stepBtn, days<=4 && s.stepBtnOff]}>
+              <Text style={[s.stepBtnTxt, days<=4 && {color:C.gray}]}>−</Text>
+            </Pressable>
+            <View style={s.stepVal}>
+              <Text style={s.stepNum}>{days}</Text>
+              <Text style={s.stepUnit}>{ar ? 'أيام' : 'days'}</Text>
+            </View>
+            <Pressable onPress={() => setDays(d => Math.min(30, d+1))} style={s.stepBtn}>
+              <Text style={s.stepBtnTxt}>+</Text>
+            </Pressable>
+          </View>
+        </View>
+      </>}
 
-      {type === 'monthly' && (
-        <View style={[s.datesRow, ar && s.rowRtl]}>
-          <Pressable style={s.dateBox}>
-            <Text style={s.dateBoxLabel}>{ar ? '📅 تاريخ البداية' : '📅 Start Date'}</Text>
+      {/* ── MONTHLY ── */}
+      {type === 'monthly' && <>
+        <AppInput ph={ar ? 'موقع الاستلام...' : 'Search pickup location...'} value={location} onChangeText={setLocation} icon="📍" style={s.locInput}/>
+        <View style={[s.datesRow, ar && {flexDirection:'row-reverse'}]}>
+          <View style={s.dateBox}>
+            <Text style={s.dateBoxLbl}>{ar ? '📅 تاريخ البداية' : '📅 Start Date'}</Text>
             <Text style={s.dateBoxVal}>{startMonth}</Text>
-          </Pressable>
-          <View style={s.dateDivider}>
-            <View style={s.stepperWrap}>
-              <Pressable onPress={() => setMonths(m => Math.max(1, m - 1))} style={s.stepBtn}>
-                <Text style={s.stepBtnTxt}>−</Text>
-              </Pressable>
-              <View style={s.stepValue}>
-                <Text style={s.stepValueNum}>{months}</Text>
-                <Text style={s.stepValueLbl}>{ar ? 'شهر' : 'mo'}</Text>
-              </View>
-              <Pressable onPress={() => setMonths(m => Math.min(12, m + 1))} style={s.stepBtn}>
-                <Text style={s.stepBtnTxt}>+</Text>
-              </Pressable>
-            </View>
           </View>
-          <View style={s.dateBox}>
-            <Text style={s.dateBoxLabel}>{ar ? '💰 تقدير السعر' : '💰 Est. Rate'}</Text>
-            <Text style={s.dateBoxVal}>{ar ? `${months * 8500} ج.م` : `EGP ${(months * 8500).toLocaleString()}`}</Text>
+          <Text style={s.dateSep}>·</Text>
+          <View style={[s.dateBox,{borderColor:'rgba(201,162,39,0.3)'}]}>
+            <Text style={s.dateBoxLbl}>{ar ? '💰 التقدير الشهري' : '💰 Monthly Est.'}</Text>
+            <Text style={[s.dateBoxVal,{color:C.gold}]}>{ar ? `${(months*8500).toLocaleString()} ج.م` : `EGP ${(months*8500).toLocaleString()}`}</Text>
           </View>
         </View>
-      )}
+        <View style={[s.stepCard, ar && {flexDirection:'row-reverse'}]}>
+          <View style={{flex:1}}>
+            <Text style={s.stepCardTitle}>{ar ? 'عدد الأشهر' : 'Number of Months'}</Text>
+            <Text style={s.stepCardNote}>{ar ? '🎁 عروض خاصة متاحة' : '🎁 Special offers available'}</Text>
+          </View>
+          <View style={s.stepControls}>
+            <Pressable onPress={() => setMonths(m => Math.max(1, m-1))} style={[s.stepBtn, months<=1 && s.stepBtnOff]}>
+              <Text style={[s.stepBtnTxt, months<=1 && {color:C.gray}]}>−</Text>
+            </Pressable>
+            <View style={s.stepVal}>
+              <Text style={s.stepNum}>{months}</Text>
+              <Text style={s.stepUnit}>{ar ? (months===1?'شهر':'أشهر') : (months===1?'mo':'mos')}</Text>
+            </View>
+            <Pressable onPress={() => setMonths(m => Math.min(12, m+1))} style={s.stepBtn}>
+              <Text style={s.stepBtnTxt}>+</Text>
+            </Pressable>
+          </View>
+        </View>
+      </>}
+
+      {/* ── AIRPORT ── */}
+      {type === 'airport' && <>
+        <View>
+          <Text style={[s.fieldLbl, ar && s.rtl]}>{ar ? 'صالة الوصول' : 'Arrival Terminal'}</Text>
+          <View style={[s.termRow, ar && {flexDirection:'row-reverse'}]}>
+            {TERMINALS.map(term => (
+              <Pressable key={term} onPress={() => setTerminal(term)}
+                style={[s.termBtn, terminal===term && s.termBtnActive]}>
+                <Text style={[s.termBtnTxt, terminal===term && {color:'#000'}]}>{term}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+        <View>
+          <Text style={[s.fieldLbl, ar && s.rtl]}>{ar ? 'رقم الرحلة (اختياري)' : 'Flight Number (optional)'}</Text>
+          <AppInput ph={ar ? 'مثال: MS789' : 'e.g. MS789'} value={flightNo} onChangeText={setFlightNo} icon="✈️" style={s.locInput}/>
+        </View>
+        <View style={[s.datesRow, ar && {flexDirection:'row-reverse'}]}>
+          <View style={s.dateBox}>
+            <Text style={s.dateBoxLbl}>{ar ? '🕙 وقت الوصول' : '🕙 Arrival Time'}</Text>
+            <Text style={s.dateBoxVal}>10:00 AM</Text>
+          </View>
+          <Text style={s.dateSep}>·</Text>
+          <View style={s.dateBox}>
+            <Text style={s.dateBoxLbl}>{ar ? '🤝 خدمة الاستقبال' : '🤝 Meet & Greet'}</Text>
+            <Text style={[s.dateBoxVal,{color:'#4CAF50'}]}>{ar ? 'مشمولة ✓' : 'Included ✓'}</Text>
+          </View>
+        </View>
+      </>}
 
       {/* CTA */}
-      <Pressable onPress={onSearch} style={s.heroBtn}>
+      <Pressable onPress={() => onSearch(type)} style={s.heroBtn}>
         <Text style={s.heroBtnTxt}>
-          {ar ? '🚗 شاهد السيارات المتاحة' : '🚗 See Available Cars'}
+          {type==='airport' ? (ar?'✈️ احجز استلام المطار':'✈️ Book Airport Pickup') : (ar?'🚗 شاهد السيارات المتاحة':'🚗 See Available Cars')}
         </Text>
       </Pressable>
     </LinearGradient>
   );
 }
 
-// ─── Main HomeScreen ────────────────────────────────────────────────────────────
 export default function HomeScreen({ lang, navigate, setBookData }: Props) {
   const ar = lang === 'ar';
 
-  const handleSearch = () => {
-    setBookData({ pickup: 'Selected Location', dropoff: 'Destination' });
+  const handleSearch = (type: RentalType) => {
+    setBookData({
+      pickup: type === 'airport' ? 'Cairo International Airport' : 'Selected Location',
+      dropoff: type === 'airport' ? 'Your Destination' : 'Destination',
+    });
     navigate('booking');
   };
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-
-      {/* ── Top Bar ── */}
-      <View style={[styles.topBar, ar && styles.rowRtl]}>
+    <ScrollView style={st.scroll} contentContainerStyle={st.content} showsVerticalScrollIndicator={false}>
+      {/* Top Bar */}
+      <View style={[st.topBar, ar && st.rowRtl]}>
         <View>
-          <Text style={[styles.greeting, ar && styles.rtl]}>{t(lang, 'goodMorning')}</Text>
-          <Text style={[styles.name, ar && styles.rtl]}>{ar ? 'أحمد الشربيني' : 'Ahmed El-Sherbiny'}</Text>
+          <Text style={[st.greeting, ar && st.rtl]}>{t(lang,'goodMorning')}</Text>
+          <Text style={[st.name, ar && st.rtl]}>{ar ? 'أحمد الشربيني' : 'Ahmed El-Sherbiny'}</Text>
         </View>
-        <View style={[styles.topRight, ar && styles.rowRtl]}>
-          <Pressable onPress={() => navigate('toggleLang')} style={styles.langBtn}>
-            <Text style={styles.langTxt}>{ar ? 'EN' : 'عر'}</Text>
+        <View style={[st.topRight, ar && st.rowRtl]}>
+          <Pressable onPress={() => navigate('toggleLang')} style={st.langBtn}>
+            <Text style={st.langTxt}>{ar ? 'EN' : 'عر'}</Text>
           </Pressable>
-          <Pressable onPress={() => navigate('notifications')} style={styles.bellBtn}>
-            <Text style={styles.bellIcon}>🔔</Text>
-            <View style={styles.bellBadge} />
+          <Pressable onPress={() => navigate('notifications')} style={st.bellBtn}>
+            <Text style={st.bellIco}>🔔</Text>
+            <View style={st.bellBadge}/>
           </Pressable>
         </View>
       </View>
 
-      {/* ── Active Booking Banner ── */}
-      <LinearGradient
-        colors={['#1A4D2E', '#0A1F12']}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={styles.activeBanner}
-      >
-        <PulseDot color="#4CAF50" />
-        <View style={styles.bannerText}>
-          <Text style={[styles.bannerTitle, ar && styles.rtl]}>{t(lang, 'driverOnWay')}</Text>
-          <Text style={styles.bannerSub}>Ahmed Hassan · ABC 1234 · Mercedes S-Class</Text>
+      {/* Active Booking Banner */}
+      <LinearGradient colors={['#1A4D2E','#0A1F12']} start={{x:0,y:0}} end={{x:1,y:1}} style={st.banner}>
+        <PulseDot color="#4CAF50"/>
+        <View style={{flex:1}}>
+          <Text style={[st.bannerTitle, ar && st.rtl]}>{t(lang,'driverOnWay')}</Text>
+          <Text style={st.bannerSub}>Ahmed Hassan · ABC 1234 · Mercedes S-Class</Text>
         </View>
-        <Pressable onPress={() => navigate('tracking')} style={styles.trackBtn}>
-          <Text style={styles.trackBtnTxt}>{ar ? 'تتبع' : 'Track'}</Text>
+        <Pressable onPress={() => navigate('tracking')} style={st.trackBtn}>
+          <Text style={st.trackBtnTxt}>{ar ? 'تتبع' : 'Track'}</Text>
         </Pressable>
       </LinearGradient>
 
-      {/* ── Duration Hero (NEW) ── */}
-      <View style={styles.heroWrap}>
-        <DurationHero lang={lang} onSearch={handleSearch} />
+      {/* Duration Hero */}
+      <View style={st.heroWrap}>
+        <DurationHero lang={lang} onSearch={handleSearch}/>
       </View>
 
-      {/* ── Quick Rebook ── */}
-      <View style={styles.section}>
-        <SectionHeader title={t(lang, 'bookAgain')} link={t(lang, 'seeAll')} />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hScroll}>
-          {REBOOK.map((item, i) => (
-            <View key={i} style={styles.rebookCard}>
-              <Text style={[styles.rebookRoute, ar && styles.rtl]}>{item.route}</Text>
-              <Text style={styles.rebookSub}>{item.car} · {item.date}</Text>
-              <Pressable onPress={() => navigate('booking')} style={styles.rebookBtn}>
-                <Text style={styles.rebookBtnTxt}>{t(lang, 'reBook')}</Text>
+      {/* Quick Rebook */}
+      <View style={st.section}>
+        <SectionHeader title={t(lang,'bookAgain')} link={t(lang,'seeAll')}/>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.hScroll}>
+          {REBOOK.map((item,i) => (
+            <View key={i} style={st.rebookCard}>
+              <Text style={[st.rebookRoute, ar && st.rtl]}>{item.route}</Text>
+              <Text style={st.rebookSub}>{item.car} · {item.date}</Text>
+              <Pressable onPress={() => navigate('booking')} style={st.rebookBtn}>
+                <Text style={st.rebookBtnTxt}>{t(lang,'reBook')}</Text>
               </Pressable>
             </View>
           ))}
         </ScrollView>
       </View>
 
-      {/* ── Saved Locations ── */}
-      <View style={styles.section}>
-        <SectionHeader title={t(lang, 'favorites')} />
-        <View style={styles.favRow}>
-          {(ar
-            ? [['🏠', 'المنزل'], ['🏢', 'العمل'], ['✈️', 'المطار']]
-            : [['🏠', 'Home'],   ['🏢', 'Work'],   ['✈️', 'Airport']]
-          ).map(([ico, lbl], i) => (
-            <Pressable key={i} style={styles.favChip}>
-              <Text>{ico}</Text>
-              <Text style={styles.favTxt}>{lbl}</Text>
-            </Pressable>
+      {/* Saved Locations */}
+      <View style={st.section}>
+        <SectionHeader title={t(lang,'favorites')}/>
+        <View style={st.favRow}>
+          {(ar?[['🏠','المنزل'],['🏢','العمل'],['✈️','المطار']]:[['🏠','Home'],['🏢','Work'],['✈️','Airport']]).map(([ico,lbl],i)=>(
+            <Pressable key={i} style={st.favChip}><Text>{ico}</Text><Text style={st.favTxt}>{lbl}</Text></Pressable>
           ))}
-          <Pressable style={styles.favAdd}>
-            <Text style={styles.favAddTxt}>+ {t(lang, 'addNew')}</Text>
-          </Pressable>
+          <Pressable style={st.favAdd}><Text style={st.favAddTxt}>+ {t(lang,'addNew')}</Text></Pressable>
         </View>
       </View>
 
-      {/* ── Current Offers ── */}
-      <View style={[styles.section, { marginBottom: 8 }]}>
-        <SectionHeader
-          title={t(lang, 'currentOffers')}
-          link={t(lang, 'seeAll')}
-          onLink={() => navigate('offersTab')}
-        />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hScroll}>
-          {HOME_OFFERS.map((o, i) => (
-            <LinearGradient
-              key={i}
-              colors={o.dark ? ['#1A4D2E', '#0D2818'] : ['#3A2800', '#1A1000']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={styles.offerCard}
-            >
-              <Text style={styles.offerTitle}>{o.title}</Text>
-              <Text style={styles.offerSub}>{o.sub}</Text>
-              <View style={styles.offerBottom}>
-                <View style={styles.offerBadge}>
-                  <Text style={styles.offerBadgeTxt}>{o.sub.split(' ').pop()}</Text>
-                </View>
-                <Text style={styles.offerExp}>{o.exp}</Text>
+      {/* Current Offers */}
+      <View style={[st.section,{marginBottom:8}]}>
+        <SectionHeader title={t(lang,'currentOffers')} link={t(lang,'seeAll')} onLink={() => navigate('offersTab')}/>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.hScroll}>
+          {HOME_OFFERS.map((o,i) => (
+            <LinearGradient key={i} colors={o.dark?['#1A4D2E','#0D2818']:['#3A2800','#1A1000']} start={{x:0,y:0}} end={{x:1,y:1}} style={st.offerCard}>
+              <Text style={st.offerTitle}>{o.title}</Text>
+              <Text style={st.offerSub}>{o.sub}</Text>
+              <View style={st.offerBottom}>
+                <View style={st.offerBadge}><Text style={st.offerBadgeTxt}>{o.sub.split(' ').pop()}</Text></View>
+                <Text style={st.offerExp}>{o.exp}</Text>
               </View>
             </LinearGradient>
           ))}
         </ScrollView>
       </View>
-
     </ScrollView>
   );
 }
 
-// ─── Hero local styles ─────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  hero: {
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(46,125,79,0.25)',
-    gap: 14,
-  },
-  heroHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  rowRtl:      { flexDirection: 'row-reverse' },
-  heroTitles:  { flex: 1 },
-  heroLabel:   { color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 4 },
-  heroTitle:   { color: C.white, fontSize: 22, fontWeight: '900', lineHeight: 28 },
-  rtl:         { textAlign: 'right' },
-  carsBadge:   { backgroundColor: C.gold, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, alignItems: 'center', minWidth: 52 },
-  carsBadgeNum:{ color: '#000', fontSize: 22, fontWeight: '900', lineHeight: 24, textAlign: 'center' },
-  carsBadgeSub:{ color: 'rgba(0,0,0,0.55)', fontSize: 9, fontWeight: '700', textAlign: 'center', lineHeight: 12 },
-
-  // Tabs
-  tabsRow:     { flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: 10, padding: 3, gap: 2 },
-  typeTab:     { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  typeTabActive: { backgroundColor: C.gold },
-  typeTabTxt:  { color: 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: '600' },
-  typeTabTxtActive: { color: '#000', fontWeight: '700' },
-
-  // Location
-  locWrap:     {},
-  locInput:    { backgroundColor: 'rgba(255,255,255,0.09)', borderColor: 'rgba(255,255,255,0.12)' },
-
-  // Date / duration row
-  datesRow:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dateBox:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  dateBoxLabel:{ color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: '600', marginBottom: 4 },
-  dateBoxVal:  { color: C.white, fontSize: 13, fontWeight: '700' },
-  dateDivider: { alignItems: 'center', justifyContent: 'center' },
-  dateDividerTxt: { color: C.gold, fontSize: 16 },
-
-  // Stepper (for hourly/monthly)
-  stepperWrap: { alignItems: 'center', gap: 4 },
-  stepBtn:     { width: 28, height: 28, borderRadius: 14, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
-  stepBtnTxt:  { color: '#000', fontSize: 16, fontWeight: '900', lineHeight: 20 },
-  stepValue:   { alignItems: 'center' },
-  stepValueNum:{ color: C.white, fontSize: 18, fontWeight: '900' },
-  stepValueLbl:{ color: C.gold, fontSize: 10, fontWeight: '600' },
-
-  // CTA Button
-  heroBtn:     { backgroundColor: C.gold, borderRadius: 14, height: 54, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
-  heroBtnTxt:  { color: '#000', fontSize: 16, fontWeight: '800', letterSpacing: 0.3 },
+  hero:           {borderRadius:20,padding:18,borderWidth:1,borderColor:'rgba(46,125,79,0.25)',gap:12},
+  heroLabel:      {color:'rgba(255,255,255,0.45)',fontSize:11,fontWeight:'600',textTransform:'uppercase',letterSpacing:1.2,marginBottom:3},
+  heroTitle:      {color:C.white,fontSize:22,fontWeight:'900'},
+  rtl:            {textAlign:'right'},
+  tabsRow:        {flexDirection:'row',gap:6},
+  typeTab:        {flex:1,paddingVertical:9,borderRadius:10,alignItems:'center',backgroundColor:'rgba(0,0,0,0.25)',borderWidth:1,borderColor:'rgba(255,255,255,0.07)',gap:3},
+  typeTabActive:  {backgroundColor:C.gold,borderColor:C.gold},
+  typeTabIco:     {fontSize:14},
+  typeTabTxt:     {color:'rgba(255,255,255,0.5)',fontSize:11,fontWeight:'600',textAlign:'center'},
+  typeTabTxtActive:{color:'#000',fontWeight:'700'},
+  locInput:       {backgroundColor:'rgba(255,255,255,0.09)',borderColor:'rgba(255,255,255,0.12)'},
+  fieldLbl:       {color:'rgba(255,255,255,0.5)',fontSize:11,fontWeight:'600',marginBottom:6},
+  datesRow:       {flexDirection:'row',alignItems:'center',gap:8},
+  dateBox:        {flex:1,backgroundColor:'rgba(0,0,0,0.25)',borderRadius:12,padding:12,borderWidth:1,borderColor:'rgba(255,255,255,0.08)'},
+  dateBoxLbl:     {color:'rgba(255,255,255,0.45)',fontSize:10,fontWeight:'600',marginBottom:4},
+  dateBoxVal:     {color:C.white,fontSize:13,fontWeight:'700'},
+  dateSep:        {color:C.gold,fontSize:16},
+  stepCard:       {flexDirection:'row',alignItems:'center',justifyContent:'space-between',backgroundColor:'rgba(0,0,0,0.2)',borderRadius:14,padding:14,borderWidth:1,borderColor:'rgba(255,255,255,0.07)'},
+  stepCardTitle:  {color:C.white,fontSize:14,fontWeight:'700'},
+  stepCardNote:   {color:C.gray,fontSize:11,marginTop:3},
+  stepControls:   {flexDirection:'row',alignItems:'center',gap:12},
+  stepBtn:        {width:34,height:34,borderRadius:17,backgroundColor:C.gold,alignItems:'center',justifyContent:'center'},
+  stepBtnOff:     {backgroundColor:C.surface3,borderWidth:1,borderColor:'rgba(255,255,255,0.1)'},
+  stepBtnTxt:     {color:'#000',fontSize:18,fontWeight:'900',lineHeight:22},
+  stepVal:        {alignItems:'center',minWidth:42},
+  stepNum:        {color:C.white,fontSize:22,fontWeight:'900'},
+  stepUnit:       {color:C.gold,fontSize:11,fontWeight:'600'},
+  termRow:        {flexDirection:'row',gap:8},
+  termBtn:        {flex:1,height:44,borderRadius:10,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(0,0,0,0.25)',borderWidth:1,borderColor:'rgba(255,255,255,0.1)'},
+  termBtnActive:  {backgroundColor:C.gold,borderColor:C.gold},
+  termBtnTxt:     {color:C.gray,fontSize:14,fontWeight:'700'},
+  heroBtn:        {backgroundColor:C.gold,borderRadius:14,height:54,alignItems:'center',justifyContent:'center'},
+  heroBtnTxt:     {color:'#000',fontSize:16,fontWeight:'800',letterSpacing:0.3},
 });
 
-// ─── Screen-level styles ────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  scroll:       { flex: 1, backgroundColor: C.bg },
-  content:      { paddingBottom: 24 },
-
-  topBar:       { padding: 16, paddingBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rowRtl:       { flexDirection: 'row-reverse' },
-  greeting:     { color: C.gray, fontSize: 13 },
-  name:         { color: C.white, fontSize: 18, fontWeight: '800', marginTop: 2 },
-  rtl:          { textAlign: 'right' },
-  topRight:     { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  langBtn:      { backgroundColor: C.surface2, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: 'rgba(201,162,39,0.3)' },
-  langTxt:      { color: C.gold, fontSize: 12, fontWeight: '700' },
-  bellBtn:      { backgroundColor: C.surface2, borderRadius: 12, width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
-  bellIcon:     { fontSize: 17 },
-  bellBadge:    { position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF5350', borderWidth: 1.5, borderColor: C.bg },
-
-  activeBanner: { marginHorizontal: 16, marginBottom: 14, borderRadius: 14, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: 'rgba(76,175,80,0.25)' },
-  bannerText:   { flex: 1 },
-  bannerTitle:  { color: C.white, fontSize: 14, fontWeight: '700' },
-  bannerSub:    { color: C.gray, fontSize: 12, marginTop: 2 },
-  trackBtn:     { backgroundColor: C.gold, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  trackBtnTxt:  { color: '#000', fontSize: 12, fontWeight: '800' },
-
-  heroWrap:     { marginHorizontal: 16, marginBottom: 20 },
-
-  section:      { paddingHorizontal: 16, marginBottom: 20 },
-  hScroll:      { gap: 12, paddingRight: 16 },
-
-  rebookCard:   { backgroundColor: C.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', minWidth: 188 },
-  rebookRoute:  { color: C.white, fontSize: 13, fontWeight: '700', marginBottom: 4 },
-  rebookSub:    { color: C.gray, fontSize: 11, marginBottom: 12 },
-  rebookBtn:    { backgroundColor: 'rgba(201,162,39,0.1)', borderWidth: 1, borderColor: 'rgba(201,162,39,0.3)', borderRadius: 8, height: 34, alignItems: 'center', justifyContent: 'center' },
-  rebookBtnTxt: { color: C.gold, fontSize: 12, fontWeight: '700' },
-
-  favRow:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  favChip:      { backgroundColor: C.surface, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
-  favTxt:       { color: C.white, fontSize: 13, fontWeight: '600' },
-  favAdd:       { borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(201,162,39,0.4)', borderStyle: 'dashed' },
-  favAddTxt:    { color: C.gold, fontSize: 13 },
-
-  offerCard:    { minWidth: 200, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', gap: 4 },
-  offerTitle:   { color: C.white, fontSize: 14, fontWeight: '700' },
-  offerSub:     { color: C.gray, fontSize: 12 },
-  offerBottom:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
-  offerBadge:   { backgroundColor: 'rgba(201,162,39,0.15)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  offerBadgeTxt:{ color: C.gold, fontSize: 11, fontWeight: '700' },
-  offerExp:     { color: C.gray, fontSize: 11 },
+const st = StyleSheet.create({
+  scroll:         {flex:1,backgroundColor:C.bg},
+  content:        {paddingBottom:24},
+  topBar:         {padding:16,paddingBottom:10,flexDirection:'row',justifyContent:'space-between',alignItems:'center'},
+  rowRtl:         {flexDirection:'row-reverse'},
+  greeting:       {color:C.gray,fontSize:13},
+  name:           {color:C.white,fontSize:18,fontWeight:'800',marginTop:2},
+  rtl:            {textAlign:'right'},
+  topRight:       {flexDirection:'row',gap:10,alignItems:'center'},
+  langBtn:        {backgroundColor:C.surface2,borderRadius:8,paddingHorizontal:10,paddingVertical:5,borderWidth:1,borderColor:'rgba(201,162,39,0.3)'},
+  langTxt:        {color:C.gold,fontSize:12,fontWeight:'700'},
+  bellBtn:        {backgroundColor:C.surface2,borderRadius:12,width:40,height:40,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'rgba(255,255,255,0.07)'},
+  bellIco:        {fontSize:17},
+  bellBadge:      {position:'absolute',top:8,right:8,width:8,height:8,borderRadius:4,backgroundColor:'#EF5350',borderWidth:1.5,borderColor:C.bg},
+  banner:         {marginHorizontal:16,marginBottom:14,borderRadius:14,padding:12,flexDirection:'row',alignItems:'center',gap:12,borderWidth:1,borderColor:'rgba(76,175,80,0.25)'},
+  bannerTitle:    {color:C.white,fontSize:14,fontWeight:'700'},
+  bannerSub:      {color:C.gray,fontSize:12,marginTop:2},
+  trackBtn:       {backgroundColor:C.gold,borderRadius:8,paddingHorizontal:12,paddingVertical:6},
+  trackBtnTxt:    {color:'#000',fontSize:12,fontWeight:'800'},
+  heroWrap:       {marginHorizontal:16,marginBottom:20},
+  section:        {paddingHorizontal:16,marginBottom:20},
+  hScroll:        {gap:12,paddingRight:16},
+  rebookCard:     {backgroundColor:C.surface,borderRadius:14,padding:14,borderWidth:1,borderColor:'rgba(255,255,255,0.07)',minWidth:188},
+  rebookRoute:    {color:C.white,fontSize:13,fontWeight:'700',marginBottom:4},
+  rebookSub:      {color:C.gray,fontSize:11,marginBottom:12},
+  rebookBtn:      {backgroundColor:'rgba(201,162,39,0.1)',borderWidth:1,borderColor:'rgba(201,162,39,0.3)',borderRadius:8,height:34,alignItems:'center',justifyContent:'center'},
+  rebookBtnTxt:   {color:C.gold,fontSize:12,fontWeight:'700'},
+  favRow:         {flexDirection:'row',flexWrap:'wrap',gap:8},
+  favChip:        {backgroundColor:C.surface,borderRadius:10,paddingHorizontal:14,paddingVertical:8,flexDirection:'row',alignItems:'center',gap:6,borderWidth:1,borderColor:'rgba(255,255,255,0.07)'},
+  favTxt:         {color:C.white,fontSize:13,fontWeight:'600'},
+  favAdd:         {borderRadius:10,paddingHorizontal:14,paddingVertical:8,borderWidth:1,borderColor:'rgba(201,162,39,0.4)',borderStyle:'dashed'},
+  favAddTxt:      {color:C.gold,fontSize:13},
+  offerCard:      {minWidth:200,borderRadius:14,padding:16,borderWidth:1,borderColor:'rgba(255,255,255,0.05)',gap:4},
+  offerTitle:     {color:C.white,fontSize:14,fontWeight:'700'},
+  offerSub:       {color:C.gray,fontSize:12},
+  offerBottom:    {flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginTop:8},
+  offerBadge:     {backgroundColor:'rgba(201,162,39,0.15)',borderRadius:6,paddingHorizontal:8,paddingVertical:3},
+  offerBadgeTxt:  {color:C.gold,fontSize:11,fontWeight:'700'},
+  offerExp:       {color:C.gray,fontSize:11},
 });

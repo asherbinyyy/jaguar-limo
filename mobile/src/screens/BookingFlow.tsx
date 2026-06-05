@@ -16,11 +16,11 @@ import { CARS } from '../data/cars';
 import { VALID_PROMO_CODES } from '../data/offers';
 
 // ─── Progress Bar ──────────────────────────────────────────────────────────────
-function BookingProgress({ step, lang }: { step: number; lang: Lang }) {
+function BookingProgress({ step, total = 4, lang }: { step: number; total?: number; lang: Lang }) {
   const ar = lang === 'ar';
-  const labels = ar
-    ? ['التفاصيل', 'السيارة', 'التأكيد', 'تم!']
-    : ['Details', 'Car', 'Confirm', 'Done!'];
+  const labels4 = ar ? ['التفاصيل','السيارة','التأكيد','تم!']   : ['Details','Car','Confirm','Done!'];
+  const labels3 = ar ? ['التفاصيل','التأكيد','تم!']             : ['Details','Confirm','Done!'];
+  const labels   = total === 3 ? labels3 : labels4;
   return (
     <View style={[pg.row, ar && { flexDirection: 'row-reverse' }]}>
       {labels.map((lbl, i) => (
@@ -33,7 +33,7 @@ function BookingProgress({ step, lang }: { step: number; lang: Lang }) {
             </View>
             <Text style={[pg.lbl, i + 1 <= step && pg.lblActive]}>{lbl}</Text>
           </View>
-          {i < 3 && <View style={[pg.line, i + 1 < step && pg.lineActive]} />}
+          {i < labels.length - 1 && <View style={[pg.line, i + 1 < step && pg.lineActive]} />}
         </React.Fragment>
       ))}
     </View>
@@ -305,48 +305,87 @@ const s4 = StyleSheet.create({
 // ─── Main BookingFlow ─────────────────────────────────────────────────────────
 interface Props {
   bookData: BookData;
+  preSelectedCar?: Car | null;   // set when coming from CarDetail → skip step 2
   onBack: () => void;
   onHome: () => void;
   lang: Lang;
 }
 
-export default function BookingFlow({ bookData, onBack, onHome, lang }: Props) {
+export default function BookingFlow({ bookData, preSelectedCar, onBack, onHome, lang }: Props) {
   const ar = lang === 'ar';
+  const skipCarStep = !!preSelectedCar;                 // true = 3-step flow
+  const totalSteps  = skipCarStep ? 3 : 4;
+
   const [step, setStep] = useState(1);
   const [data, setData] = useState(bookData);
-  const [selectedCar, setSelectedCar] = useState<Car | null>(null);
+  const [selectedCar, setSelectedCar] = useState<Car | null>(preSelectedCar ?? null);
 
-  const stepTitles = ar
-    ? ['تفاصيل الرحلة', 'اختر سيارتك', 'تأكيد الحجز', 'تم الحجز!']
-    : ['Ride Details', 'Choose Your Car', 'Confirm Booking', 'Booking Done!'];
+  // When car is pre-selected the visual steps are: 1=Details, 2=Confirm, 3=Done
+  // When no car:                                   1=Details, 2=Car,     3=Confirm, 4=Done
+  const goNext = (from: number) => setStep(from + 1);
+  const goBack = () => { step > 1 ? setStep(s => s - 1) : onBack(); };
+
+  // Resolve which component to show based on step + skipCarStep
+  const renderStep = () => {
+    if (!skipCarStep) {
+      // 4-step flow
+      if (step === 1) return <Step1 data={data} onNext={d => { setData(d); goNext(1); }} lang={lang} />;
+      if (step === 2) return <Step2 onNext={car => { setSelectedCar(car); goNext(2); }} lang={lang} />;
+      if (step === 3) return <Step3 bookData={data} car={selectedCar ?? FALLBACK_CAR} onConfirm={() => goNext(3)} lang={lang} />;
+      return <Step4 onHome={onHome} lang={lang} />;
+    } else {
+      // 3-step flow (car already chosen)
+      if (step === 1) return <Step1 data={data} onNext={d => { setData(d); goNext(1); }} lang={lang} />;
+      if (step === 2) return <Step3 bookData={data} car={selectedCar ?? FALLBACK_CAR} onConfirm={() => goNext(2)} lang={lang} />;
+      return <Step4 onHome={onHome} lang={lang} />;
+    }
+  };
+
+  // Step titles matching the current flow
+  const stepTitle = () => {
+    if (!skipCarStep) {
+      return (ar
+        ? ['تفاصيل الرحلة','اختر سيارتك','تأكيد الحجز','تم الحجز!']
+        : ['Ride Details','Choose Your Car','Confirm Booking','Booking Done!']
+      )[step - 1];
+    } else {
+      // Pre-selected car: show selected car name in header
+      const carName = selectedCar?.name ?? '';
+      return (ar
+        ? [`تفاصيل الرحلة — ${carName}`, 'تأكيد الحجز', 'تم الحجز!']
+        : [`Ride Details — ${carName}`, 'Confirm Booking', 'Booking Done!']
+      )[step - 1];
+    }
+  };
+
+  // Progress dots: map current step to visual steps
+  const progressStep = step;   // 1-indexed, same for both flows
+
+  const isDone = skipCarStep ? step === 3 : step === 4;
 
   return (
     <View style={st.container}>
-      {step < 4 && (
+      {!isDone && (
         <View style={st.header}>
           <View style={[st.headerTop, ar && { flexDirection: 'row-reverse' }]}>
-            <Pressable onPress={() => { step > 1 ? setStep(s => s - 1) : onBack(); }}>
+            <Pressable onPress={goBack}>
               <Text style={st.backArrow}>{ar ? '→' : '←'}</Text>
             </Pressable>
-            <Text style={st.headerTitle}>{stepTitles[step - 1]}</Text>
+            <Text style={st.headerTitle} numberOfLines={1}>{stepTitle()}</Text>
           </View>
-          <BookingProgress step={step} lang={lang} />
+          <BookingProgress step={progressStep} total={totalSteps} lang={lang} />
         </View>
       )}
-      <View style={st.flex}>
-        {step === 1 && <Step1 data={data} onNext={d => { setData(d); setStep(2); }} lang={lang} />}
-        {step === 2 && <Step2 onNext={car => { setSelectedCar(car); setStep(3); }} lang={lang} />}
-        {step === 3 && <Step3
-          bookData={data}
-          car={selectedCar ?? { id:1, name:'Mercedes S-Class', cat:'luxury', label:'Luxury', price:850, seats:4, bags:2, imageUrl:'', gradientColors:['#0F2A1C','#040D09'], description:'', descriptionAr:'' }}
-          onConfirm={() => setStep(4)}
-          lang={lang}
-        />}
-        {step === 4 && <Step4 onHome={onHome} lang={lang} />}
-      </View>
+      <View style={st.flex}>{renderStep()}</View>
     </View>
   );
 }
+
+const FALLBACK_CAR: Car = {
+  id: 1, name: 'Mercedes S-Class', cat: 'luxury', label: 'Luxury',
+  price: 850, seats: 4, bags: 2, imageUrl: '',
+  gradientColors: ['#0F2A1C','#040D09'], description: '', descriptionAr: '',
+};
 
 const st = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },

@@ -53,7 +53,12 @@ export default function App() {
       case 'notifications': go('notifications'); break;
       case 'tracking':      go('tracking'); break;
       case 'loyalty':       go('loyalty'); break;
-      case 'booking':       go('booking'); break;
+      case 'booking':
+        // payload = Car when coming from CarDetail (skip car step)
+        // payload = undefined when coming from Home (show car step)
+        setSelectedCar(payload ?? null);
+        go('booking');
+        break;
       case 'carDetail':     setSelectedCar(payload); go('carDetail'); break;
       case 'offersTab':     setTab('offers'); break;
       case 'back':          setScreen(prevScreen); break;
@@ -135,6 +140,7 @@ export default function App() {
     if (screen === 'booking') return (
       <BookingFlow
         bookData={bookData}
+        preSelectedCar={selectedCar}   // non-null = skip car-selection step
         onBack={() => setScreen(null)}
         onHome={() => { setScreen(null); setTab('home'); }}
         lang={lang}

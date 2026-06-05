@@ -10,7 +10,7 @@ import { Car } from '../types';
 
 const BOOKED_DAYS = [3, 7, 12, 13, 14, 20, 21];
 
-interface Props { car: Car; onBack: () => void; navigate: (d: string) => void; lang: Lang }
+interface Props { car: Car; onBack: () => void; navigate: (d: string, payload?: any) => void; lang: Lang }
 
 export default function CarDetailScreen({ car, onBack, navigate, lang }: Props) {
   const ar = lang === 'ar';
@@ -93,7 +93,7 @@ export default function CarDetailScreen({ car, onBack, navigate, lang }: Props) 
           <Text style={styles.footerPrice}>EGP {car.price.toLocaleString()}</Text>
           <Text style={styles.footerPer}>/trip</Text>
         </View>
-        <GoldBtn onPress={() => navigate('booking')} style={styles.bookBtn}>
+        <GoldBtn onPress={() => navigate('booking', car)} style={styles.bookBtn}>
           {ar ? 'احجز هذه السيارة' : 'Book This Car'}
         </GoldBtn>
       </View>
